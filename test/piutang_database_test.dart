@@ -7,7 +7,8 @@ import 'package:piutang_usaha/models/transaksi_kredit.dart';
 import 'package:piutang_usaha/services/db_helper.dart';
 
 void main(){
-  sqfliteFfiInit(); databaseFactory=sqfliteFfiInit == null ? databaseFactory : databaseFactoryFfi;
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
   final db=DbHelper.instance;
   setUp(()async{await db.tutupKoneksi();final f=File(await db.getDbPath());if(await f.exists())await f.delete();});
   tearDown(()async{await db.tutupKoneksi();final f=File(await db.getDbPath());if(await f.exists())await f.delete();});
