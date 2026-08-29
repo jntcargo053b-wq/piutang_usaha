@@ -7,7 +7,6 @@ import 'laporan_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
@@ -33,19 +32,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _backup() async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<PiutangProvider>().backupDatabase();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
   Future<void> _open(Widget page) async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    final navigator = Navigator.of(context);
+    await navigator.push(MaterialPageRoute(builder: (_) => page));
     if (!mounted) return;
     await _load();
-    await context.read<PiutangProvider>().muatPelanggan();
+    if (!mounted) return;
+    final provider = context.read<PiutangProvider>();
+    await provider.muatPelanggan();
   }
 
   @override
@@ -54,9 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Piutang Usaha'),
-        actions: [
-          IconButton(onPressed: _backup, icon: const Icon(Icons.backup)),
-        ],
+        actions: [IconButton(onPressed: _backup, icon: const Icon(Icons.backup))],
       ),
       body: RefreshIndicator(
         onRefresh: _load,
