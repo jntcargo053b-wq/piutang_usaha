@@ -31,13 +31,35 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('android/app/build.gradle')
-          text = p.read_text()
-          text = text.replace('compileSdk flutter.compileSdkVersion', 'compileSdk 36')
-          text = text.replace('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36')
-          p.write_text(text)
+
+          candidates = [
+              Path('android/app/build.gradle'),
+              Path('android/app/build.gradle.kts'),
+          ]
+          path = next((p for p in candidates if p.is_file()), None)
+          if path is None:
+              raise SystemExit('Android app Gradle file was not generated')
+
+          text = path.read_text()
+          original = text
+
+          replacements = [
+              ('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'),
+              ('compileSdk flutter.compileSdkVersion', 'compileSdk 36'),
+              ('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'),
+          ]
+          for old, new in replacements:
+              text = text.replace(old, new)
+
+          if text == original or 'compileSdk = 36' not in text and 'compileSdk 36' not in text:
+              raise SystemExit(f'Could not set compileSdk 36 in {path}')
+
+          path.write_text(text)
+          print(f'Using {path}')
+          for line in text.splitlines():
+              if 'compileSdk' in line:
+                  print(line)
           PY
-          grep -n "compileSdk" android/app/build.gradle
 
       - name: Get dependencies
         run: flutter pub get
