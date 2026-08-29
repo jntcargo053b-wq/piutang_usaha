@@ -2,9 +2,6 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:piutang_usaha/models/pelanggan.dart';
-import 'package:piutang_usaha/models/pembayaran.dart';
-import 'package:piutang_usaha/models/transaksi_kredit.dart';
 import 'package:piutang_usaha/services/db_helper.dart';
 
 void main() {
@@ -27,3 +24,4 @@ void main() {
     final file = File(path);
     if (await file.exists()) await file.delete();
   });
+}
