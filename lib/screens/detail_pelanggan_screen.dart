@@ -4,6 +4,7 @@ import '../models/pelanggan.dart';
 import '../models/transaksi_kredit.dart';
 import '../models/pembayaran.dart';
 import '../providers/piutang_provider.dart';
+import '../services/db_helper.dart';
 import '../services/customer_report_service.dart';
 import '../utils/formatter.dart';
 
@@ -30,10 +31,9 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Future<Map<int, List<Pembayaran>>> _loadPembayaran() async {
-    final db = context.read<PiutangProvider>().db;
     final result = <int, List<Pembayaran>>{};
-    for (final transaksi in rows) {
-      result[transaksi.id!] = await db.getPembayaranByTransaksi(transaksi.id!);
+    for (final t in rows) {
+      result[t.id!] = await DbHelper.instance.getPembayaranByTransaksi(t.id!);
     }
     return result;
   }
@@ -116,9 +116,41 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.pelanggan.nama), actions: [IconButton(onPressed: loading ? null : _laporanPelanggan, tooltip: 'Laporan pelanggan', icon: const Icon(Icons.description))]),
+      appBar: AppBar(
+        title: Text(widget.pelanggan.nama),
+        actions: [IconButton(onPressed: loading ? null : _laporanPelanggan, tooltip: 'Laporan pelanggan', icon: const Icon(Icons.description))],
+      ),
       floatingActionButton: FloatingActionButton(onPressed: _transaksi, child: const Icon(Icons.add)),
-      body: loading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(onRefresh: _load, child: ListView.builder(physics: const AlwaysScrollableScrollPhysics(), itemCount: rows.length, itemBuilder: (context, index) { final transaksi = rows[index]; return Card(child: ListTile(title: Text(transaksi.nomorResi), subtitle: Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}\n${Formatter.tanggalPendek(transaksi.tanggal)}'), isThreeLine: true, trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [Text(Formatter.rupiah(transaksi.sisa), style: const TextStyle(fontWeight: FontWeight.bold)), if (!transaksi.lunas) TextButton(onPressed: () => _bayar(transaksi), child: const Text('Bayar'))]), onLongPress: () => showModalBottomSheet<void>(context: context, builder: (sheetContext) => SafeArea(child: ListTile(leading: const Icon(Icons.delete), title: const Text('Hapus transaksi'), onTap: () { Navigator.pop(sheetContext); _hapusTransaksi(transaksi); })))); }))
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: rows.length,
+                itemBuilder: (context, index) {
+                  final transaksi = rows[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(transaksi.nomorResi),
+                      subtitle: Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}\n${Formatter.tanggalPendek(transaksi.tanggal)}'),
+                      isThreeLine: true,
+                      trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [Text(Formatter.rupiah(transaksi.sisa), style: const TextStyle(fontWeight: FontWeight.bold)), if (!transaksi.lunas) TextButton(onPressed: () => _bayar(transaksi), child: const Text('Bayar'))]),
+                      onLongPress: () => showModalBottomSheet<void>(
+                        context: context,
+                        builder: (sheetContext) => SafeArea(
+                          child: ListTile(
+                            leading: const Icon(Icons.delete),
+                            title: const Text('Hapus transaksi'),
+                            onTap: () { Navigator.pop(sheetContext); _hapusTransaksi(transaksi); },
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 }
