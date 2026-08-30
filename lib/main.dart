@@ -16,13 +16,27 @@ class PiutangUsahaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final seed = Colors.blue;
+    final lightScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light);
+    final darkScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark);
     return ChangeNotifierProvider(
       create: (_) => PiutangProvider(),
       child: MaterialApp(
         title: 'Piutang Usaha',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true,
-          appBarTheme: const AppBarTheme(centerTitle: true)),
+        theme: ThemeData(
+          colorScheme: lightScheme,
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(centerTitle: true),
+          inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
+        ),
+        darkTheme: ThemeData(
+          colorScheme: darkScheme,
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(centerTitle: true),
+          inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder()),
+        ),
+        themeMode: ThemeMode.system,
         home: const HomeScreen(),
       ),
     );
