@@ -18,7 +18,10 @@ void main() {
 
   testWidgets('Piutang Usaha app starts', (WidgetTester tester) async {
     await tester.pumpWidget(const PiutangUsahaApp());
-    await tester.pumpAndSettle(const Duration(seconds: 2));
+
+    // Do not use pumpAndSettle here: HomeScreen intentionally performs
+    // asynchronous database loading and can keep the frame queue active.
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(MaterialApp), findsOneWidget);
     expect(find.text('Piutang Usaha'), findsOneWidget);
