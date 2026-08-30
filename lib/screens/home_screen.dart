@@ -58,7 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await context.read<PiutangProvider>().backupDatabase();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     }
   }
 
@@ -74,7 +75,13 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: _load,
         child: loading
-            ? const ListView(physics: AlwaysScrollableScrollPhysics(), children: [SizedBox(height: 280), Center(child: CircularProgressIndicator())])
+            ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 280),
+                  Center(child: CircularProgressIndicator()),
+                ],
+              )
             : ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
