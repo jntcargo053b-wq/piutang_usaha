@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(color: primary, borderRadius: BorderRadius.circular(24)),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('TOTAL PIUTANG', style: TextStyle(color: theme.colorScheme.onPrimary.withOpacity(.75), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: .8)),
+                      Text('TOTAL PIUTANG', style: TextStyle(color: theme.colorScheme.onPrimary.withValues(alpha: .75), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: .8)),
                       const SizedBox(height: 6),
                       Text(Formatter.rupiah(summary['sisa_piutang'] ?? 0), style: TextStyle(color: theme.colorScheme.onPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 20),
