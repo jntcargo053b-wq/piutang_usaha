@@ -18,48 +18,60 @@ class CustomerReportService {
     required Map<int, List<Pembayaran>> pembayaran,
   }) async {
     final doc = pw.Document();
-    final totalKredit = transaksi.fold<int>(0, (s, t) => s + t.jumlah);
-    final totalDibayar = transaksi.fold<int>(0, (s, t) => s + t.totalDibayar);
-    final totalSisa = transaksi.fold<int>(0, (s, t) => s + t.sisa);
+    final totalTransaksi = transaksi.fold<int>(0, (sum, t) => sum + t.jumlah);
 
-    doc.addPage(pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      build: (_) => [
-        pw.Text('Laporan Kredit Pelanggan', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 6),
-        pw.Text('Pelanggan: $namaPelanggan'),
-        pw.SizedBox(height: 14),
-        pw.TableHelper.fromTextArray(
-          headers: const ['Total Kredit', 'Total Dibayar', 'Sisa Piutang'],
-          data: [[Formatter.rupiah(totalKredit), Formatter.rupiah(totalDibayar), Formatter.rupiah(totalSisa)]],
-        ),
-        pw.SizedBox(height: 18),
-        pw.Text('Daftar Transaksi', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 6),
-        pw.TableHelper.fromTextArray(
-          headers: const ['Tanggal', 'Resi', 'Penerima', 'Kota', 'Kredit', 'Dibayar', 'Sisa'],
-          data: transaksi.map((t) => [
-            Formatter.tanggalPendek(t.tanggal), t.nomorResi, t.namaPenerima, t.kotaTujuan,
-            Formatter.rupiah(t.jumlah), Formatter.rupiah(t.totalDibayar), Formatter.rupiah(t.sisa),
-          ]).toList(),
-        ),
-        pw.SizedBox(height: 18),
-        pw.Text('Riwayat Pembayaran', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 6),
-        pw.TableHelper.fromTextArray(
-          headers: const ['Tanggal', 'Resi', 'Jumlah', 'Keterangan'],
-          data: transaksi.expand((t) => (pembayaran[t.id] ?? []).map((b) => [
-            Formatter.tanggalPendek(b.tanggal), t.nomorResi, Formatter.rupiah(b.jumlah), b.keterangan ?? '',
-          ])).toList(),
-        ),
-      ],
-    ));
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (_) => [
+          pw.Text(
+            'Laporan Transaksi Pelanggan',
+            style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text('Pelanggan: $namaPelanggan'),
+          pw.SizedBox(height: 4),
+          pw.Text('Total Transaksi: ${transaksi.length}'),
+          pw.Text('Total: ${Formatter.rupiah(totalTransaksi)}'),
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Daftar Transaksi',
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 6),
+          pw.TableHelper.fromTextArray(
+            headers: const ['Tanggal', 'Resi', 'Penerima', 'Kota', 'Total'],
+            data: transaksi
+                .map(
+                  (t) => [
+                    Formatter.tanggalPendek(t.tanggal),
+                    t.nomorResi,
+                    t.namaPenerima,
+                    t.kotaTujuan,
+                    Formatter.rupiah(t.jumlah),
+                  ],
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
 
     final dir = await getTemporaryDirectory();
     final safeName = namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
-    final file = File(p.join(dir.path, 'laporan_kredit_${safeName}_${DateTime.now().millisecondsSinceEpoch}.pdf'));
+    final file = File(
+      p.join(
+        dir.path,
+        'laporan_transaksi_${safeName}_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      ),
+    );
     await file.writeAsBytes(await doc.save());
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan kredit pelanggan $namaPelanggan'));
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Laporan transaksi pelanggan $namaPelanggan',
+      ),
+    );
   }
 
   static Future<void> shareExcel({
@@ -68,31 +80,54 @@ class CustomerReportService {
     required Map<int, List<Pembayaran>> pembayaran,
   }) async {
     final excel = Excel.createExcel();
-    final sheet = excel['Laporan Kredit'];
+    final sheet = excel['Laporan Transaksi'];
+
     sheet.appendRow([
-      TextCellValue('Tanggal'), TextCellValue('Resi'), TextCellValue('Penerima'), TextCellValue('Kota'),
-      TextCellValue('Kredit'), TextCellValue('Dibayar'), TextCellValue('Sisa'),
+      TextCellValue('Tanggal'),
+      TextCellValue('Resi'),
+      TextCellValue('Penerima'),
+      TextCellValue('Kota'),
+      TextCellValue('Total'),
     ]);
+
     for (final t in transaksi) {
       sheet.appendRow([
-        TextCellValue(Formatter.tanggalPendek(t.tanggal)), TextCellValue(t.nomorResi), TextCellValue(t.namaPenerima),
-        TextCellValue(t.kotaTujuan), IntCellValue(t.jumlah), IntCellValue(t.totalDibayar), IntCellValue(t.sisa),
+        TextCellValue(Formatter.tanggalPendek(t.tanggal)),
+        TextCellValue(t.nomorResi),
+        TextCellValue(t.namaPenerima),
+        TextCellValue(t.kotaTujuan),
+        IntCellValue(t.jumlah),
       ]);
     }
+
     sheet.appendRow([]);
-    sheet.appendRow([TextCellValue('Riwayat Pembayaran')]);
-    sheet.appendRow([TextCellValue('Tanggal'), TextCellValue('Resi'), TextCellValue('Jumlah'), TextCellValue('Keterangan')]);
-    for (final t in transaksi) {
-      for (final b in pembayaran[t.id] ?? const <Pembayaran>[]) {
-        sheet.appendRow([TextCellValue(Formatter.tanggalPendek(b.tanggal)), TextCellValue(t.nomorResi), IntCellValue(b.jumlah), TextCellValue(b.keterangan ?? '')]);
-      }
-    }
+    sheet.appendRow([TextCellValue('Pelanggan'), TextCellValue(namaPelanggan)]);
+    sheet.appendRow([
+      TextCellValue('Jumlah Transaksi'),
+      IntCellValue(transaksi.length),
+    ]);
+    sheet.appendRow([
+      TextCellValue('Total'),
+      IntCellValue(transaksi.fold<int>(0, (sum, t) => sum + t.jumlah)),
+    ]);
+
     final bytes = excel.encode();
     if (bytes == null) throw Exception('Gagal membuat Excel.');
+
     final dir = await getTemporaryDirectory();
     final safeName = namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
-    final file = File(p.join(dir.path, 'laporan_kredit_${safeName}_${DateTime.now().millisecondsSinceEpoch}.xlsx'));
+    final file = File(
+      p.join(
+        dir.path,
+        'laporan_transaksi_${safeName}_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+      ),
+    );
     await file.writeAsBytes(bytes);
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan kredit pelanggan $namaPelanggan'));
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Laporan transaksi pelanggan $namaPelanggan',
+      ),
+    );
   }
 }
