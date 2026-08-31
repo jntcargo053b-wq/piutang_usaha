@@ -10,6 +10,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/pembayaran.dart';
 import '../models/transaksi_kredit.dart';
 import '../utils/formatter.dart';
+import 'report_header_settings.dart';
 
 class CustomerReportService {
   static Future<void> sharePdf({
@@ -17,15 +18,20 @@ class CustomerReportService {
     required List<TransaksiKredit> transaksi,
     required Map<int, List<Pembayaran>> pembayaran,
   }) async {
-    final doc = pw.Document();
+    final settings = await ReportHeaderSettings.load();
     final sorted = List<TransaksiKredit>.from(transaksi)
       ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
     final total = sorted.fold<int>(0, (sum, t) => sum + t.jumlah);
     final firstDate = sorted.isEmpty ? DateTime.now() : sorted.first.tanggal;
     final lastDate = sorted.isEmpty ? DateTime.now() : sorted.last.tanggal;
-    final dueDate = DateTime(lastDate.year, lastDate.month, lastDate.day + 7);
-    final invoiceNo = _invoiceNumber(namaPelanggan, firstDate, lastDate);
 
+    pw.MemoryImage? logo;
+    if (settings.logoPath != null) {
+      final file = File(settings.logoPath!);
+      if (await file.exists()) logo = pw.MemoryImage(await file.readAsBytes());
+    }
+
+    final doc = pw.Document();
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -37,32 +43,18 @@ class CustomerReportService {
               border: pw.Border(bottom: pw.BorderSide(width: 1.2)),
             ),
             child: pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
+                if (logo != null) ...[
+                  pw.Container(width: 58, height: 58, padding: const pw.EdgeInsets.only(right: 10), child: pw.Image(logo, fit: pw.BoxFit.contain)),
+                ],
                 pw.Expanded(
-                  flex: 3,
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text(
-                        'JNT CARGO MLG053B',
-                        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-                      ),
-                      pw.SizedBox(height: 3),
-                      pw.Text('INVOICE / TAGIHAN PIUTANG', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                    ],
-                  ),
-                ),
-                pw.Expanded(
-                  flex: 2,
-                  child: pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text('No. Invoice', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-                      pw.Text(invoiceNo, style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-                      pw.SizedBox(height: 3),
-                      pw.Text('Tanggal: ${Formatter.tanggalPendek(DateTime.now())}', style: const pw.TextStyle(fontSize: 8)),
+                      pw.Text(settings.companyName, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 4),
+                      pw.Text(settings.reportTitle, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -78,54 +70,24 @@ class CustomerReportService {
               pw.Expanded(child: _infoBlock('PERIODE PENAGIHAN', '${Formatter.tanggalPendek(firstDate)} - ${Formatter.tanggalPendek(lastDate)}')),
             ],
           ),
-          pw.SizedBox(height: 6),
-          pw.Row(
-            children: [
-              pw.Expanded(child: _infoBlock('JATUH TEMPO', Formatter.tanggalPendek(dueDate))),
-              pw.SizedBox(width: 18),
-              pw.Expanded(child: _infoBlock('STATUS', 'BELUM LUNAS')),
-            ],
-          ),
           pw.SizedBox(height: 18),
           pw.Text('RINCIAN TRANSAKSI', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 6),
           _transactionTable(sorted),
-          pw.SizedBox(height: 10),
-          pw.Container(
-            alignment: pw.Alignment.centerRight,
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.end,
-              children: [
-                pw.Text('TOTAL TAGIHAN', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(width: 16),
-                pw.Text(Formatter.rupiah(total), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-          ),
           pw.SizedBox(height: 12),
           pw.Text('Terbilang:', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
           pw.Text('${_terbilang(total)} rupiah', style: const pw.TextStyle(fontSize: 9)),
           pw.SizedBox(height: 18),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(8),
-            decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey400)),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Jumlah transaksi: ${sorted.length}', style: const pw.TextStyle(fontSize: 8)),
-                pw.Text('Mohon dilakukan pembayaran sesuai jatuh tempo.', style: const pw.TextStyle(fontSize: 8)),
-              ],
-            ),
-          ),
+          pw.Text('Jumlah transaksi: ${sorted.length}', style: const pw.TextStyle(fontSize: 8)),
         ],
       ),
     );
 
     final dir = await getTemporaryDirectory();
     final safeName = namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
-    final file = File(p.join(dir.path, 'invoice_${safeName}_${DateTime.now().millisecondsSinceEpoch}.pdf'));
+    final file = File(p.join(dir.path, 'laporan_${safeName}_${DateTime.now().millisecondsSinceEpoch}.pdf'));
     await file.writeAsBytes(await doc.save());
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Invoice/tagihan piutang $namaPelanggan'));
+    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan transaksi pelanggan $namaPelanggan'));
   }
 
   static pw.Widget _infoBlock(String label, String value) => pw.Column(
@@ -178,14 +140,7 @@ class CustomerReportService {
     ));
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey500, width: .5),
-      columnWidths: const {
-        0: pw.FixedColumnWidth(22),
-        1: pw.FixedColumnWidth(55),
-        2: pw.FlexColumnWidth(1.15),
-        3: pw.FlexColumnWidth(1.25),
-        4: pw.FlexColumnWidth(1.35),
-        5: pw.FixedColumnWidth(72),
-      },
+      columnWidths: const {0: pw.FixedColumnWidth(22), 1: pw.FixedColumnWidth(55), 2: pw.FlexColumnWidth(1.15), 3: pw.FlexColumnWidth(1.25), 4: pw.FlexColumnWidth(1.35), 5: pw.FixedColumnWidth(72)},
       defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
       children: rows,
     );
@@ -195,11 +150,6 @@ class CustomerReportService {
         padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: pw.Text(value, style: style, textAlign: align, maxLines: 3, overflow: pw.TextOverflow.clip),
       );
-
-  static String _invoiceNumber(String customer, DateTime start, DateTime end) {
-    final normalized = customer.codeUnits.fold<int>(0, (sum, c) => (sum + c) % 10000);
-    return 'INV-${start.year}${start.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}${normalized.toString().padLeft(4, '0')}';
-  }
 
   static String _terbilang(int value) {
     if (value == 0) return 'Nol';
@@ -223,32 +173,32 @@ class CustomerReportService {
     required List<TransaksiKredit> transaksi,
     required Map<int, List<Pembayaran>> pembayaran,
   }) async {
-    final excel = Excel.createExcel();
-    final sheet = excel['Invoice'];
-    final sorted = List<TransaksiKredit>.from(transaksi)..sort((a,b)=>a.tanggal.compareTo(b.tanggal));
-    final total = sorted.fold<int>(0, (sum,t)=>sum+t.jumlah);
+    final settings = await ReportHeaderSettings.load();
+    final sorted = List<TransaksiKredit>.from(transaksi)..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    final total = sorted.fold<int>(0, (sum, t) => sum + t.jumlah);
     final firstDate = sorted.isEmpty ? DateTime.now() : sorted.first.tanggal;
     final lastDate = sorted.isEmpty ? DateTime.now() : sorted.last.tanggal;
-    final dueDate = DateTime(lastDate.year,lastDate.month,lastDate.day+7);
-    sheet.appendRow([TextCellValue('JNT CARGO MLG053B')]);
-    sheet.appendRow([TextCellValue('INVOICE / TAGIHAN PIUTANG')]);
-    sheet.appendRow([TextCellValue('No. Invoice'),TextCellValue(_invoiceNumber(namaPelanggan,firstDate,lastDate))]);
-    sheet.appendRow([TextCellValue('Tanggal Invoice'),TextCellValue(Formatter.tanggalPendek(DateTime.now()))]);
-    sheet.appendRow([TextCellValue('Pelanggan'),TextCellValue(namaPelanggan)]);
-    sheet.appendRow([TextCellValue('Periode Penagihan'),TextCellValue('${Formatter.tanggalPendek(firstDate)} - ${Formatter.tanggalPendek(lastDate)}')]);
-    sheet.appendRow([TextCellValue('Jatuh Tempo'),TextCellValue(Formatter.tanggalPendek(dueDate))]);
+    final excel = Excel.createExcel();
+    final sheet = excel['Laporan'];
+    sheet.appendRow([TextCellValue(settings.companyName)]);
+    sheet.appendRow([TextCellValue(settings.reportTitle)]);
+    sheet.appendRow([TextCellValue('Pelanggan'), TextCellValue(namaPelanggan)]);
+    sheet.appendRow([TextCellValue('Periode Penagihan'), TextCellValue('${Formatter.tanggalPendek(firstDate)} - ${Formatter.tanggalPendek(lastDate)}')]);
     sheet.appendRow([]);
-    sheet.appendRow([TextCellValue('No'),TextCellValue('Tanggal'),TextCellValue('Resi'),TextCellValue('Penerima'),TextCellValue('Kota'),TextCellValue('Total')]);
-    for(var i=0;i<sorted.length;i++){final t=sorted[i];sheet.appendRow([IntCellValue(i+1),TextCellValue(Formatter.tanggalPendek(t.tanggal)),TextCellValue(t.nomorResi),TextCellValue(t.namaPenerima),TextCellValue(t.kotaTujuan),IntCellValue(t.jumlah)]);}
-    sheet.appendRow([TextCellValue(''),TextCellValue(''),TextCellValue(''),TextCellValue(''),TextCellValue('TOTAL TAGIHAN'),IntCellValue(total)]);
+    sheet.appendRow([TextCellValue('No'), TextCellValue('Tanggal'), TextCellValue('Resi'), TextCellValue('Penerima'), TextCellValue('Kota'), TextCellValue('Total')]);
+    for (var i = 0; i < sorted.length; i++) {
+      final t = sorted[i];
+      sheet.appendRow([IntCellValue(i + 1), TextCellValue(Formatter.tanggalPendek(t.tanggal)), TextCellValue(t.nomorResi), TextCellValue(t.namaPenerima), TextCellValue(t.kotaTujuan), IntCellValue(t.jumlah)]);
+    }
+    sheet.appendRow([TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue('TOTAL TAGIHAN'), IntCellValue(total)]);
     sheet.appendRow([]);
-    sheet.appendRow([TextCellValue('Terbilang'),TextCellValue('${_terbilang(total)} rupiah')]);
-    final bytes=excel.encode();
-    if(bytes==null)throw Exception('Gagal membuat Excel.');
-    final dir=await getTemporaryDirectory();
-    final safeName=namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'),'_');
-    final file=File(p.join(dir.path,'invoice_${safeName}_${DateTime.now().millisecondsSinceEpoch}.xlsx'));
+    sheet.appendRow([TextCellValue('Terbilang'), TextCellValue('${_terbilang(total)} rupiah')]);
+    final bytes = excel.encode();
+    if (bytes == null) throw Exception('Gagal membuat Excel.');
+    final dir = await getTemporaryDirectory();
+    final safeName = namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
+    final file = File(p.join(dir.path, 'laporan_${safeName}_${DateTime.now().millisecondsSinceEpoch}.xlsx'));
     await file.writeAsBytes(bytes);
-    await SharePlus.instance.share(ShareParams(files:[XFile(file.path)],text:'Invoice/tagihan piutang $namaPelanggan'));
+    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan transaksi pelanggan $namaPelanggan'));
   }
 }
