@@ -24,4 +24,9 @@ void main() {
     final file = File(path);
     if (await file.exists()) await file.delete();
   });
+
+  test('database initializes and starts empty', () async {
+    final pelanggan = await db.getAllPelanggan();
+    expect(pelanggan, isEmpty);
+  });
 }
