@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
 import 'providers/piutang_provider.dart';
 import 'screens/home_screen.dart';
 
@@ -13,12 +12,11 @@ Future<void> main() async {
 
 class PiutangUsahaApp extends StatelessWidget {
   const PiutangUsahaApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     const seed = Colors.blue;
-    const lightScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light);
-    const darkScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark);
+    final lightScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light);
+    final darkScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark);
     return ChangeNotifierProvider(
       create: (_) => PiutangProvider(),
       child: MaterialApp(
