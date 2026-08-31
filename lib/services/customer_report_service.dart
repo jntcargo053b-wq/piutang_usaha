@@ -100,7 +100,10 @@ class CustomerReportService {
       );
 
   static pw.Widget _transactionTable(List<TransaksiKredit> transaksi) {
-    const headerStyle = pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold);
+    // pdf TextStyle is not a const constructor in the pdf version used here.
+    // Keep these styles final; the lint rule is intentionally suppressed.
+    // ignore: prefer_const_declarations
+    final headerStyle = pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold);
     const bodyStyle = pw.TextStyle(fontSize: 7.2);
     final rows = <pw.TableRow>[
       pw.TableRow(
