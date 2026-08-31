@@ -100,8 +100,8 @@ class CustomerReportService {
       );
 
   static pw.Widget _transactionTable(List<TransaksiKredit> transaksi) {
-    final headerStyle = pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold);
-    final bodyStyle = const pw.TextStyle(fontSize: 7.2);
+    const headerStyle = pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold);
+    const bodyStyle = pw.TextStyle(fontSize: 7.2);
     final rows = <pw.TableRow>[
       pw.TableRow(
         repeat: true,
