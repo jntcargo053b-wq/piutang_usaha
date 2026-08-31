@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/piutang_provider.dart';
 import '../services/export_service.dart';
 import '../utils/formatter.dart';
+import 'report_header_settings_screen.dart';
 
 class LaporanScreen extends StatefulWidget {
   const LaporanScreen({super.key});
@@ -47,8 +48,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
     final totalPembayaranPeriode = payments.fold<int>(0, (sum, row) => sum + (row['jumlah'] as num).toInt());
     return Scaffold(
       appBar: AppBar(title: const Text('Laporan'), actions: [
-        IconButton(onPressed: rows.isEmpty ? null : () => ExportService.exportRekapKePdf(rows, dari, sampai), icon: const Icon(Icons.picture_as_pdf)),
-        IconButton(onPressed: rows.isEmpty ? null : () => ExportService.exportRekapKeExcel(rows), icon: const Icon(Icons.table_view)),
+        IconButton(onPressed: () async { await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportHeaderSettingsScreen())); }, tooltip: 'Header laporan', icon: const Icon(Icons.business_outlined)),
+        IconButton(onPressed: rows.isEmpty ? null : () => ExportService.exportRekapKePdf(rows, dari, sampai), tooltip: 'PDF', icon: const Icon(Icons.picture_as_pdf)),
+        IconButton(onPressed: rows.isEmpty ? null : () => ExportService.exportRekapKeExcel(rows), tooltip: 'Excel', icon: const Icon(Icons.table_view)),
       ]),
       body: loading ? const Center(child: CircularProgressIndicator()) : ListView(
         padding: const EdgeInsets.all(12),
@@ -56,7 +58,7 @@ class _LaporanScreenState extends State<LaporanScreen> {
           Card(child: Row(children: [
             Expanded(child: ListTile(title: const Text('Dari'), subtitle: Text(Formatter.tanggalPendek(dari)), onTap: () => _pick(true))),
             Expanded(child: ListTile(title: const Text('Sampai'), subtitle: Text(Formatter.tanggalPendek(sampai)), onTap: () => _pick(false))),
-            IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
+            IconButton(onPressed: _load, tooltip: 'Muat ulang', icon: const Icon(Icons.refresh)),
           ])),
           Card(child: ListTile(title: const Text('Kredit pada periode'), trailing: Text(Formatter.rupiah(totalKredit), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)))),
           Card(child: ListTile(title: const Text('Pembayaran diterima pada periode'), trailing: Text(Formatter.rupiah(totalPembayaranPeriode), style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w700)))),
