@@ -61,7 +61,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
         const Text('Metode pembayaran', style: TextStyle(fontWeight: FontWeight.w600)),
         RadioGroup<String>(
           groupValue: _metode,
-          onChanged: _saving ? null : (value) { if (value != null) setState(() => _metode = value); },
+          onChanged: (String? value) {
+            if (_saving || value == null) return;
+            setState(() => _metode = value);
+          },
           child: const Column(children: [
             RadioListTile<String>(dense: true, contentPadding: EdgeInsets.zero, value: 'cash', title: Text('Cash'), secondary: Icon(Icons.payments_outlined)),
             RadioListTile<String>(dense: true, contentPadding: EdgeInsets.zero, value: 'transfer', title: Text('Transfer'), secondary: Icon(Icons.account_balance_outlined)),
