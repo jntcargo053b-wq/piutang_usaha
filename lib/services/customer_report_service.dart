@@ -11,19 +11,353 @@ import '../utils/formatter.dart';
 import 'report_header_settings.dart';
 
 class CustomerReportService {
-  static int _paidFor(TransaksiKredit t, Map<int,List<Pembayaran>> pembayaran) => pembayaran[t.id]?.fold<int>(0,(s,p)=>s+p.jumlah) ?? 0;
-  static Future<void> sharePdf({required String namaPelanggan,required List<TransaksiKredit> transaksi,required Map<int,List<Pembayaran>> pembayaran}) async {
-    final settings=await ReportHeaderSettings.load(); final sorted=List<TransaksiKredit>.from(transaksi)..sort((a,b)=>a.tanggal.compareTo(b.tanggal));
-    final total=sorted.fold<int>(0,(s,t)=>s+t.jumlah); final paid=sorted.fold<int>(0,(s,t)=>s+_paidFor(t,pembayaran)); final remaining=(total-paid).clamp(0,total);
-    final first=sorted.isEmpty?DateTime.now():sorted.first.tanggal; final last=sorted.isEmpty?DateTime.now():sorted.last.tanggal; pw.MemoryImage? logo;
-    if(settings.logoPath!=null){final file=File(settings.logoPath!);if(await file.exists())logo=pw.MemoryImage(await file.readAsBytes());}
-    final doc=pw.Document(); doc.addPage(pw.MultiPage(pageFormat:PdfPageFormat.a4,margin:const pw.EdgeInsets.fromLTRB(28,30,28,30),build:(_)=>[
-      pw.Container(padding:const pw.EdgeInsets.only(bottom:12),decoration:const pw.BoxDecoration(border:pw.Border(bottom:pw.BorderSide(width:1.2))),child:pw.Row(children:[if(logo!=null)pw.Container(width:58,height:58,padding:const pw.EdgeInsets.only(right:10),child:pw.Image(logo,fit:pw.BoxFit.contain)),pw.Expanded(child:pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[pw.Text(settings.companyName,style:pw.TextStyle(fontSize:16,fontWeight:pw.FontWeight.bold)),pw.SizedBox(height:4),pw.Text(settings.reportTitle,style:pw.TextStyle(fontSize:11,fontWeight:pw.FontWeight.bold))]))])),pw.SizedBox(height:14),pw.Row(children:[pw.Expanded(child:_info('PELANGGAN',namaPelanggan)),pw.SizedBox(width:18),pw.Expanded(child:_info('PERIODE PENAGIHAN','${Formatter.tanggalPendek(first)} - ${Formatter.tanggalPendek(last)}'))]),pw.SizedBox(height:18),pw.Text('RINCIAN TRANSAKSI',style:pw.TextStyle(fontSize:11,fontWeight:pw.FontWeight.bold)),pw.SizedBox(height:6),_table(sorted,pembayaran),pw.SizedBox(height:12),pw.Text('RINGKASAN TAGIHAN',style:pw.TextStyle(fontSize:9,fontWeight:pw.FontWeight.bold)),pw.SizedBox(height:4),pw.Text('Total transaksi: ${Formatter.rupiah(total)}'),pw.Text('Total pembayaran: ${Formatter.rupiah(paid)}'),pw.Text('Sisa piutang: ${Formatter.rupiah(remaining)}'),pw.SizedBox(height:12),pw.Text('Terbilang: ${_terbilang(remaining)} rupiah',style:pw.TextStyle(fontSize:9,fontWeight:pw.FontWeight.bold)),pw.SizedBox(height:14),pw.Text('Jumlah transaksi: ${sorted.length}',style:const pw.TextStyle(fontSize:8))]));
-    final dir=await getTemporaryDirectory();final safe=namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'),'_');final file=File(p.join(dir.path,'laporan_${safe}_${DateTime.now().millisecondsSinceEpoch}.pdf'));await file.writeAsBytes(await doc.save());await SharePlus.instance.share(ShareParams(files:[XFile(file.path)],text:'Laporan transaksi pelanggan $namaPelanggan'));
+  static int _paidFor(
+    TransaksiKredit t,
+    Map<int, List<Pembayaran>> pembayaran,
+  ) => pembayaran[t.id]?.fold<int>(0, (s, p) => s + p.jumlah) ?? 0;
+
+  static Future<void> sharePdf({
+    required String namaPelanggan,
+    required List<TransaksiKredit> transaksi,
+    required Map<int, List<Pembayaran>> pembayaran,
+  }) async {
+    final settings = await ReportHeaderSettings.load();
+    final sorted = List<TransaksiKredit>.from(transaksi)
+      ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    final total = sorted.fold<int>(0, (s, t) => s + t.jumlah);
+    final paid = sorted.fold<int>(0, (s, t) => s + _paidFor(t, pembayaran));
+    final remaining = (total - paid).clamp(0, total);
+    final first = sorted.isEmpty ? DateTime.now() : sorted.first.tanggal;
+    final last = sorted.isEmpty ? DateTime.now() : sorted.last.tanggal;
+    pw.MemoryImage? logo;
+
+    if (settings.logoPath != null) {
+      final file = File(settings.logoPath!);
+      if (await file.exists()) {
+        logo = pw.MemoryImage(await file.readAsBytes());
+      }
+    }
+
+    final doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(28, 30, 28, 30),
+        footer: (ctx) => pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(
+              'Dicetak ${Formatter.tanggalPendek(DateTime.now())}',
+              style: const pw.TextStyle(fontSize: 7),
+            ),
+            pw.Text(
+              'Halaman ${ctx.pageNumber} / ${ctx.pagesCount}',
+              style: const pw.TextStyle(fontSize: 7),
+            ),
+          ],
+        ),
+        build: (_) => [
+          pw.Container(
+            padding: const pw.EdgeInsets.only(bottom: 12),
+            decoration: const pw.BoxDecoration(
+              border: pw.Border(bottom: pw.BorderSide(width: 1.2)),
+            ),
+            child: pw.Row(
+              children: [
+                if (logo != null)
+                  pw.Container(
+                    width: 58,
+                    height: 58,
+                    padding: const pw.EdgeInsets.only(right: 10),
+                    child: pw.Image(logo, fit: pw.BoxFit.contain),
+                  ),
+                pw.Expanded(
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        settings.companyName,
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        settings.reportTitle,
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 14),
+          pw.Row(
+            children: [
+              pw.Expanded(child: _info('PELANGGAN', namaPelanggan)),
+              pw.SizedBox(width: 18),
+              pw.Expanded(
+                child: _info(
+                  'PERIODE PENAGIHAN',
+                  '${Formatter.tanggalPendek(first)} - ${Formatter.tanggalPendek(last)}',
+                ),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 18),
+          pw.Text(
+            'RINCIAN TRANSAKSI',
+            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 6),
+          _table(sorted, pembayaran),
+          pw.SizedBox(height: 12),
+          pw.Text(
+            'RINGKASAN TAGIHAN',
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text('Total transaksi: ${Formatter.rupiah(total)}'),
+          pw.Text('Total pembayaran: ${Formatter.rupiah(paid)}'),
+          pw.Text('Sisa piutang: ${Formatter.rupiah(remaining)}'),
+          pw.SizedBox(height: 12),
+          pw.Text(
+            'Terbilang: ${_terbilang(remaining)} rupiah',
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 14),
+          pw.Text(
+            'Jumlah transaksi: ${sorted.length}',
+            style: const pw.TextStyle(fontSize: 8),
+          ),
+        ],
+      ),
+    );
+
+    final dir = await getTemporaryDirectory();
+    final safe = namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
+    final file = File(
+      p.join(dir.path, 'laporan_${safe}_${DateTime.now().millisecondsSinceEpoch}.pdf'),
+    );
+    await file.writeAsBytes(await doc.save());
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(file.path)],
+        text: 'Laporan transaksi pelanggan $namaPelanggan',
+      ),
+    );
   }
-  static pw.Widget _info(String label,String value)=>pw.Column(crossAxisAlignment:pw.CrossAxisAlignment.start,children:[pw.Text(label,style:pw.TextStyle(fontSize:7,color:PdfColors.grey700,fontWeight:pw.FontWeight.bold)),pw.SizedBox(height:2),pw.Text(value,maxLines:2,style:const pw.TextStyle(fontSize:9))]);
-  static pw.Widget _table(List<TransaksiKredit> ts,Map<int,List<Pembayaran>> p){final rows=<pw.TableRow>[pw.TableRow(repeat:true,decoration:const pw.BoxDecoration(color:PdfColors.grey200),children:['No','Tanggal','Resi','Penerima','Kota','Total'].map((v)=>pw.Padding(padding:const pw.EdgeInsets.all(4),child:pw.Text(v,style:pw.TextStyle(fontSize:7,fontWeight:pw.FontWeight.bold)))).toList())];for(var i=0;i<ts.length;i++){final t=ts[i];rows.add(pw.TableRow(children:[_c('${i+1}'),_c(Formatter.tanggalPendek(t.tanggal)),_c(t.nomorResi),_c(t.namaPenerima),_c(t.kotaTujuan),_c(Formatter.rupiah(t.jumlah-_paidFor(t,p)))]));}return pw.Table(border:pw.TableBorder.all(color:PdfColors.grey500,width:.5),columnWidths:const{0:pw.FixedColumnWidth(22),1:pw.FixedColumnWidth(55),2:pw.FlexColumnWidth(1.15),3:pw.FlexColumnWidth(1.25),4:pw.FlexColumnWidth(1.35),5:pw.FixedColumnWidth(72)},children:[...rows,pw.TableRow(decoration:const pw.BoxDecoration(color:PdfColors.grey100),children:[_c(''),_c(''),_c(''),_c(''),_c('TOTAL TAGIHAN'),_c(Formatter.rupiah(ts.fold<int>(0,(s,t)=>s+t.jumlah-_paidFor(t,p))))])]);}
-  static pw.Widget _c(String v)=>pw.Padding(padding:const pw.EdgeInsets.symmetric(horizontal:4,vertical:4),child:pw.Text(v,style:const pw.TextStyle(fontSize:7.2),maxLines:3));
-  static String _terbilang(int value){if(value<0)return'Minus ${_terbilang(-value)}';if(value==0)return'Nol';const w=['Nol','Satu','Dua','Tiga','Empat','Lima','Enam','Tujuh','Delapan','Sembilan','Sepuluh','Sebelas'];String c(int n){if(n<12)return w[n];if(n<20)return'${c(n-10)} Belas';if(n<100)return'${c(n~/10)} Puluh${n%10==0?'':' ${c(n%10)}'}';if(n<200)return'Seratus${n%100==0?'':' ${c(n%100)}'}';if(n<1000)return'${c(n~/100)} Ratus${n%100==0?'':' ${c(n%100)}'}';if(n<2000)return'Seribu${n%1000==0?'':' ${c(n%1000)}'}';if(n<1000000)return'${c(n~/1000)} Ribu${n%1000==0?'':' ${c(n%1000)}'}';if(n<1000000000)return'${c(n~/1000000)} Juta${n%1000000==0?'':' ${c(n%1000000)}'}';return'${c(n~/1000000000)} Miliar${n%1000000000==0?'':' ${c(n%1000000000)}'}';}return c(value);}
-  static Future<void> shareExcel({required String namaPelanggan,required List<TransaksiKredit> transaksi,required Map<int,List<Pembayaran>> pembayaran}) async {final settings=await ReportHeaderSettings.load();final sorted=List<TransaksiKredit>.from(transaksi)..sort((a,b)=>a.tanggal.compareTo(b.tanggal));final total=sorted.fold<int>(0,(s,t)=>s+t.jumlah);final paid=sorted.fold<int>(0,(s,t)=>s+_paidFor(t,pembayaran));final remaining=(total-paid).clamp(0,total);final e=Excel.createExcel();final s=e['Laporan'];s.appendRow([TextCellValue(settings.companyName)]);s.appendRow([TextCellValue(settings.reportTitle)]);s.appendRow([TextCellValue('Pelanggan'),TextCellValue(namaPelanggan)]);s.appendRow([TextCellValue('Periode Penagihan'),TextCellValue('${Formatter.tanggalPendek(sorted.isEmpty?DateTime.now():sorted.first.tanggal)} - ${Formatter.tanggalPendek(sorted.isEmpty?DateTime.now():sorted.last.tanggal)}')]);s.appendRow([]);s.appendRow([TextCellValue('No'),TextCellValue('Tanggal'),TextCellValue('Resi'),TextCellValue('Penerima'),TextCellValue('Kota'),TextCellValue('Total')]);for(var i=0;i<sorted.length;i++){final t=sorted[i];s.appendRow([IntCellValue(i+1),TextCellValue(Formatter.tanggalPendek(t.tanggal)),TextCellValue(t.nomorResi),TextCellValue(t.namaPenerima),TextCellValue(t.kotaTujuan),IntCellValue(t.jumlah-_paidFor(t,pembayaran))]);}s.appendRow([TextCellValue(''),TextCellValue(''),TextCellValue(''),TextCellValue(''),TextCellValue('TOTAL TAGIHAN'),IntCellValue(remaining)]);s.appendRow([TextCellValue('Total Pembayaran'),IntCellValue(paid)]);s.appendRow([TextCellValue('Sisa Piutang'),IntCellValue(remaining)]);s.appendRow([TextCellValue('Terbilang'),TextCellValue('${_terbilang(remaining)} rupiah')]);final bytes=e.encode();if(bytes==null)throw Exception('Gagal membuat Excel.');final dir=await getTemporaryDirectory();final safe=namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'),'_');final f=File(p.join(dir.path,'laporan_${safe}_${DateTime.now().millisecondsSinceEpoch}.xlsx'));await f.writeAsBytes(bytes);await SharePlus.instance.share(ShareParams(files:[XFile(f.path)],text:'Laporan transaksi pelanggan $namaPelanggan'));}
+
+  static pw.Widget _info(String label, String value) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 7,
+              color: PdfColors.grey700,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(value, maxLines: 2, style: const pw.TextStyle(fontSize: 9)),
+        ],
+      );
+
+  static pw.Widget _table(
+    List<TransaksiKredit> ts,
+    Map<int, List<Pembayaran>> p,
+  ) {
+    final rows = <pw.TableRow>[
+      pw.TableRow(
+        repeat: true,
+        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+        children: ['No', 'Tanggal', 'Resi', 'Penerima', 'Kota', 'Sisa']
+            .map(
+              (v) => pw.Padding(
+                padding: const pw.EdgeInsets.all(4),
+                child: pw.Text(
+                  v,
+                  textAlign: v == 'Sisa'
+                      ? pw.TextAlign.right
+                      : pw.TextAlign.left,
+                  style: pw.TextStyle(
+                    fontSize: 7,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    ];
+
+    for (var i = 0; i < ts.length; i++) {
+      final t = ts[i];
+      rows.add(
+        pw.TableRow(
+          children: [
+            _c('${i + 1}'),
+            _c(Formatter.tanggalPendek(t.tanggal)),
+            _c(t.nomorResi),
+            _c(t.namaPenerima),
+            _c(t.kotaTujuan),
+            _c(Formatter.rupiah(t.jumlah - _paidFor(t, p)), right: true),
+          ],
+        ),
+      );
+    }
+
+    rows.add(
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+        children: [
+          _c(''),
+          _c(''),
+          _c(''),
+          _c(''),
+          _c('TOTAL TAGIHAN', bold: true),
+          _c(
+            Formatter.rupiah(
+              ts.fold<int>(0, (s, t) => s + t.jumlah - _paidFor(t, p)),
+            ),
+            right: true,
+            bold: true,
+          ),
+        ],
+      ),
+    );
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey500, width: .5),
+      columnWidths: const {
+        0: pw.FixedColumnWidth(22),
+        1: pw.FixedColumnWidth(55),
+        2: pw.FlexColumnWidth(1.15),
+        3: pw.FlexColumnWidth(1.25),
+        4: pw.FlexColumnWidth(1.35),
+        5: pw.FixedColumnWidth(72),
+      },
+      children: rows,
+    );
+  }
+
+  static pw.Widget _c(
+    String v, {
+    bool right = false,
+    bool bold = false,
+  }) => pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: pw.Text(
+          v,
+          textAlign: right ? pw.TextAlign.right : pw.TextAlign.left,
+          style: pw.TextStyle(fontSize: 7.2, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal),
+          maxLines: 3,
+        ),
+      );
+
+  static String _terbilang(int value) {
+    if (value < 0) return 'Minus ${_terbilang(-value)}';
+    if (value == 0) return 'Nol';
+    const w = [
+      'Nol',
+      'Satu',
+      'Dua',
+      'Tiga',
+      'Empat',
+      'Lima',
+      'Enam',
+      'Tujuh',
+      'Delapan',
+      'Sembilan',
+      'Sepuluh',
+      'Sebelas',
+    ];
+    String c(int n) {
+      if (n < 12) return w[n];
+      if (n < 20) return '${c(n - 10)} Belas';
+      if (n < 100) return '${c(n ~/ 10)} Puluh${n % 10 == 0 ? '' : ' ${c(n % 10)}'}';
+      if (n < 200) return 'Seratus${n % 100 == 0 ? '' : ' ${c(n % 100)}'}';
+      if (n < 1000) return '${c(n ~/ 100)} Ratus${n % 100 == 0 ? '' : ' ${c(n % 100)}'}';
+      if (n < 2000) return 'Seribu${n % 1000 == 0 ? '' : ' ${c(n % 1000)}'}';
+      if (n < 1000000) return '${c(n ~/ 1000)} Ribu${n % 1000 == 0 ? '' : ' ${c(n % 1000)}'}';
+      if (n < 1000000000) return '${c(n ~/ 1000000)} Juta${n % 1000000 == 0 ? '' : ' ${c(n % 1000000)}'}';
+      return '${c(n ~/ 1000000000)} Miliar${n % 1000000000 == 0 ? '' : ' ${c(n % 1000000000)}'}';
+    }
+    return c(value);
+  }
+
+  static Future<void> shareExcel({
+    required String namaPelanggan,
+    required List<TransaksiKredit> transaksi,
+    required Map<int, List<Pembayaran>> pembayaran,
+  }) async {
+    final settings = await ReportHeaderSettings.load();
+    final sorted = List<TransaksiKredit>.from(transaksi)
+      ..sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    final total = sorted.fold<int>(0, (s, t) => s + t.jumlah);
+    final paid = sorted.fold<int>(0, (s, t) => s + _paidFor(t, pembayaran));
+    final remaining = (total - paid).clamp(0, total);
+    final e = Excel.createExcel();
+    final s = e['Laporan'];
+    s.appendRow([TextCellValue(settings.companyName)]);
+    s.appendRow([TextCellValue(settings.reportTitle)]);
+    s.appendRow([TextCellValue('Pelanggan'), TextCellValue(namaPelanggan)]);
+    s.appendRow([
+      TextCellValue('Periode Penagihan'),
+      TextCellValue(
+        '${Formatter.tanggalPendek(sorted.isEmpty ? DateTime.now() : sorted.first.tanggal)} - ${Formatter.tanggalPendek(sorted.isEmpty ? DateTime.now() : sorted.last.tanggal)}',
+      ),
+    ]);
+    s.appendRow([]);
+    s.appendRow([
+      TextCellValue('No'),
+      TextCellValue('Tanggal'),
+      TextCellValue('Resi'),
+      TextCellValue('Penerima'),
+      TextCellValue('Kota'),
+      TextCellValue('Sisa'),
+    ]);
+    for (var i = 0; i < sorted.length; i++) {
+      final t = sorted[i];
+      s.appendRow([
+        IntCellValue(i + 1),
+        TextCellValue(Formatter.tanggalPendek(t.tanggal)),
+        TextCellValue(t.nomorResi),
+        TextCellValue(t.namaPenerima),
+        TextCellValue(t.kotaTujuan),
+        IntCellValue(t.jumlah - _paidFor(t, pembayaran)),
+      ]);
+    }
+    s.appendRow([
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue('TOTAL TAGIHAN'),
+      IntCellValue(remaining),
+    ]);
+    s.appendRow([TextCellValue('Total Pembayaran'), IntCellValue(paid)]);
+    s.appendRow([TextCellValue('Sisa Piutang'), IntCellValue(remaining)]);
+    s.appendRow([TextCellValue('Terbilang'), TextCellValue('${_terbilang(remaining)} rupiah')]);
+    final bytes = e.encode();
+    if (bytes == null) throw Exception('Gagal membuat Excel.');
+    final dir = await getTemporaryDirectory();
+    final safe = namaPelanggan.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
+    final f = File(
+      p.join(dir.path, 'laporan_${safe}_${DateTime.now().millisecondsSinceEpoch}.xlsx'),
+    );
+    await f.writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [XFile(f.path)],
+        text: 'Laporan transaksi pelanggan $namaPelanggan',
+      ),
+    );
+  }
 }
