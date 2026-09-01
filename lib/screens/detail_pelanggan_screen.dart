@@ -10,6 +10,8 @@ import '../providers/piutang_provider.dart';
 import '../services/customer_report_service.dart';
 import '../services/db_helper.dart';
 import '../utils/formatter.dart';
+import '../widgets/customer_payment_sheet.dart';
+import '../widgets/payment_dialog.dart';
 
 class DetailPelangganScreen extends StatefulWidget {
   final Pelanggan pelanggan;
@@ -335,102 +337,24 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Future<void> _bayar(TransaksiKredit transaksi) async {
-    final jumlah = TextEditingController();
-    final keterangan = TextEditingController();
-    bool saving = false;
+    await PaymentDialog.show(
+      context,
+      transaksi,
+      onSaved: () async {
+        if (mounted) await _load();
+      },
+    );
+  }
 
-    try {
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) {
-          return StatefulBuilder(
-            builder: (ctx, setDialogState) {
-              return AlertDialog(
-                title: Text('Pembayaran ${transaksi.nomorResi}'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Sisa: ${Formatter.rupiah(transaksi.sisa)}'),
-                    ),
-                    TextField(
-                      controller: jumlah,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Jumlah'),
-                    ),
-                    TextField(
-                      controller: keterangan,
-                      decoration: const InputDecoration(labelText: 'Keterangan'),
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: saving ? null : () => Navigator.pop(ctx),
-                    child: const Text('Batal'),
-                  ),
-                  FilledButton(
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            final value = int.tryParse(
-                              jumlah.text.replaceAll('.', '').trim(),
-                            );
-                            if (value == null ||
-                                value <= 0 ||
-                                value > transaksi.sisa) {
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Jumlah pembayaran tidak valid'),
-                                ),
-                              );
-                              return;
-                            }
-                            setDialogState(() => saving = true);
-                            try {
-                              await ctx
-                                  .read<PiutangProvider>()
-                                  .tambahPembayaran(
-                                    Pembayaran(
-                                      transaksiId: transaksi.id!,
-                                      tanggal: DateTime.now(),
-                                      jumlah: value,
-                                      keterangan:
-                                          keterangan.text.trim().isEmpty
-                                              ? null
-                                              : keterangan.text.trim(),
-                                    ),
-                                  );
-                              if (!ctx.mounted) return;
-                              Navigator.pop(ctx);
-                              if (mounted) await _load();
-                            } catch (e) {
-                              if (!ctx.mounted) return;
-                              setDialogState(() => saving = false);
-                              ScaffoldMessenger.of(ctx).showSnackBar(
-                                SnackBar(content: Text('$e')),
-                              );
-                            }
-                          },
-                    child: saving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Bayar'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-    } finally {
-      jumlah.dispose();
-      keterangan.dispose();
-    }
+  Future<void> _bayarSemua() async {
+    if (!mounted) return;
+    await CustomerPaymentSheet.show(
+      context,
+      rows,
+      onSaved: () async {
+        if (mounted) await _load();
+      },
+    );
   }
 
   Future<void> _hapusTransaksi(TransaksiKredit transaksi) async {
@@ -468,6 +392,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final hasOutstanding = rows.any((t) => t.sisa > 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -477,6 +402,12 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          if (hasOutstanding)
+            IconButton(
+              onPressed: loading ? null : _bayarSemua,
+              tooltip: 'Bayar piutang',
+              icon: const Icon(Icons.payments_outlined),
+            ),
           IconButton(
             onPressed: loading ? null : _laporanPelanggan,
             tooltip: 'Laporan pelanggan',
@@ -541,53 +472,48 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                             transaksi.nomorResi,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
                           ),
                           subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              '${transaksi.namaPenerima} • ${transaksi.kotaTujuan}\n${Formatter.tanggalPendek(transaksi.tanggal)}',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${transaksi.namaPenerima} • ${transaksi.kotaTujuan}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Text(Formatter.tanggalPanjang(transaksi.tanggal)),
+                              ],
                             ),
                           ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                Formatter.rupiah(transaksi.sisa),
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: transaksi.lunas
-                                      ? scheme.primary
-                                      : scheme.error,
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'bayar') _bayar(transaksi);
+                              if (value == 'hapus') _hapusTransaksi(transaksi);
+                            },
+                            itemBuilder: (_) => [
+                              if (transaksi.sisa > 0)
+                                const PopupMenuItem(
+                                  value: 'bayar',
+                                  child: Text('Bayar'),
                                 ),
+                              const PopupMenuItem(
+                                value: 'hapus',
+                                child: Text('Hapus'),
                               ),
-                              if (!transaksi.lunas)
-                                TextButton(
-                                  onPressed: () => _bayar(transaksi),
-                                  child: const Text('Bayar'),
-                                ),
                             ],
                           ),
-                          onLongPress: () {
-                            showModalBottomSheet<void>(
-                              context: context,
-                              builder: (sheetContext) {
-                                return SafeArea(
-                                  child: ListTile(
-                                    leading: const Icon(Icons.delete_outline),
-                                    title: const Text('Hapus transaksi'),
-                                    onTap: () {
-                                      Navigator.pop(sheetContext);
-                                      _hapusTransaksi(transaksi);
-                                    },
-                                  ),
-                                );
-                              },
-                            );
-                          },
+                          leading: CircleAvatar(
+                            backgroundColor: scheme.primaryContainer,
+                            foregroundColor: scheme.onPrimaryContainer,
+                            child: Icon(
+                              transaksi.sisa <= 0
+                                  ? Icons.check
+                                  : Icons.receipt_long_outlined,
+                            ),
+                          ),
                         ),
                       );
                     },
@@ -607,84 +533,59 @@ class _CityPicker extends StatefulWidget {
 }
 
 class _CityPickerState extends State<_CityPicker> {
-  late final TextEditingController search;
+  late final TextEditingController searchController;
+  String query = '';
 
   @override
   void initState() {
     super.initState();
-    search = TextEditingController();
+    searchController = TextEditingController(text: widget.initialValue);
+    searchController.addListener(() {
+      if (mounted) setState(() => query = searchController.text);
+    });
   }
 
   @override
   void dispose() {
-    search.dispose();
+    searchController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final query = search.text.trim().toLowerCase();
-    final results = query.isEmpty
-        ? indonesiaCities
-        : indonesiaCities
-            .where((city) => city.toLowerCase().contains(query))
-            .toList();
+    final normalized = query.trim().toLowerCase();
+    final cities = indonesiaCities
+        .where((city) => city.toLowerCase().contains(normalized))
+        .toList(growable: false);
 
     return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Pilih Kota/Kabupaten',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: TextField(
-                controller: search,
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .8,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              TextField(
+                controller: searchController,
                 autofocus: true,
-                onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search),
-                  hintText: 'Cari nama kota atau kabupaten...',
+                  labelText: 'Cari kota/kabupaten',
                   border: OutlineInputBorder(),
                 ),
               ),
-            ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: results.length,
-                itemBuilder: (context, index) {
-                  final city = results[index];
-                  return ListTile(
-                    leading: const Icon(Icons.location_city_outlined),
-                    title: Text(city),
-                    selected: city == widget.initialValue,
-                    onTap: () => Navigator.pop(context, city),
-                  );
-                },
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: cities.length,
+                  itemBuilder: (_, index) => ListTile(
+                    title: Text(cities[index]),
+                    onTap: () => Navigator.pop(context, cities[index]),
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -700,7 +601,7 @@ class _BarcodeScannerPage extends StatefulWidget {
 
 class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
   final MobileScannerController controller = MobileScannerController();
-  bool found = false;
+  bool handled = false;
 
   @override
   void dispose() {
@@ -715,13 +616,12 @@ class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
       body: MobileScanner(
         controller: controller,
         onDetect: (capture) {
-          if (found) return;
+          if (handled) return;
           for (final barcode in capture.barcodes) {
             final value = barcode.rawValue?.trim();
             if (value != null && value.isNotEmpty) {
-              found = true;
-              controller.stop();
-              Navigator.pop(context, value);
+              handled = true;
+              Navigator.of(context).pop(value);
               break;
             }
           }
