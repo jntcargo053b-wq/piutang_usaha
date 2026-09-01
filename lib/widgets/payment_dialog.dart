@@ -20,11 +20,22 @@ class _PaymentDialogState extends State<PaymentDialog> {
   final _jumlah = TextEditingController();
   final _keterangan = TextEditingController();
   String _metode = 'cash';
+  DateTime _tanggal = DateTime.now();
   bool _saving = false;
 
   String _cleanError(Object e) => e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
 
   @override void dispose() { _jumlah.dispose(); _keterangan.dispose(); super.dispose(); }
+
+  Future<void> _pickDate() async {
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _tanggal,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (selected != null && mounted) setState(() => _tanggal = selected);
+  }
 
   Future<void> _save() async {
     final value = int.tryParse(_jumlah.text.replaceAll('.', '').replaceAll(',', '').trim());
@@ -35,7 +46,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
     setState(() => _saving = true);
     try {
       await context.read<PiutangProvider>().tambahPembayaran(Pembayaran(
-        transaksiId: widget.transaksi.id!, tanggal: DateTime.now(), jumlah: value,
+        transaksiId: widget.transaksi.id!, tanggal: _tanggal, jumlah: value,
         metode: _metode,
         keterangan: _keterangan.text.trim().isEmpty ? null : _keterangan.text.trim(),
       ));
@@ -57,7 +68,16 @@ class _PaymentDialogState extends State<PaymentDialog> {
         Card(color: scheme.surfaceContainerHighest, child: Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Sisa tagihan'), Text(Formatter.rupiah(widget.transaksi.sisa), style: const TextStyle(fontWeight: FontWeight.bold))]))),
         const SizedBox(height: 12),
         TextField(controller: _jumlah, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp ', border: OutlineInputBorder())),
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.calendar_today_outlined),
+          title: const Text('Tanggal pembayaran'),
+          subtitle: Text(Formatter.tanggalPanjang(_tanggal)),
+          trailing: const Icon(Icons.edit_calendar_outlined),
+          onTap: _saving ? null : _pickDate,
+        ),
+        const Divider(),
         const Text('Metode pembayaran', style: TextStyle(fontWeight: FontWeight.w600)),
         RadioGroup<String>(
           groupValue: _metode,
