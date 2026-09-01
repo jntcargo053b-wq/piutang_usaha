@@ -54,13 +54,19 @@ class _PaymentDialogState extends State<PaymentDialog> {
     return AlertDialog(
       title: Text('Pembayaran ${widget.transaksi.nomorResi}', maxLines: 1, overflow: TextOverflow.ellipsis),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Card(color: scheme.surfaceContainerHighest, child: Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Sisa tagihan'), Text(Formatter.rupiah(widget.transaksi.sisa), style: TextStyle(fontWeight: FontWeight.bold))]))),
+        Card(color: scheme.surfaceContainerHighest, child: Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Sisa tagihan'), Text(Formatter.rupiah(widget.transaksi.sisa), style: const TextStyle(fontWeight: FontWeight.bold))]))),
         const SizedBox(height: 12),
         TextField(controller: _jumlah, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp ', border: OutlineInputBorder())),
         const SizedBox(height: 14),
         const Text('Metode pembayaran', style: TextStyle(fontWeight: FontWeight.w600)),
-        RadioListTile<String>(dense: true, contentPadding: EdgeInsets.zero, value: 'cash', groupValue: _metode, onChanged: _saving ? null : (v) => setState(() => _metode = v!), title: const Text('Cash'), secondary: const Icon(Icons.payments_outlined)),
-        RadioListTile<String>(dense: true, contentPadding: EdgeInsets.zero, value: 'transfer', groupValue: _metode, onChanged: _saving ? null : (v) => setState(() => _metode = v!), title: const Text('Transfer'), secondary: const Icon(Icons.account_balance_outlined)),
+        RadioGroup<String>(
+          groupValue: _metode,
+          onChanged: _saving ? null : (value) { if (value != null) setState(() => _metode = value); },
+          child: const Column(children: [
+            RadioListTile<String>(dense: true, contentPadding: EdgeInsets.zero, value: 'cash', title: Text('Cash'), secondary: Icon(Icons.payments_outlined)),
+            RadioListTile<String>(dense: true, contentPadding: EdgeInsets.zero, value: 'transfer', title: Text('Transfer'), secondary: Icon(Icons.account_balance_outlined)),
+          ]),
+        ),
         TextField(controller: _keterangan, maxLines: 2, decoration: const InputDecoration(labelText: 'Keterangan (opsional)', border: OutlineInputBorder())),
       ])),
       actions: [TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Batal')), FilledButton.icon(onPressed: _saving ? null : _save, icon: _saving ? const SizedBox(width: 18,height:18,child:CircularProgressIndicator(strokeWidth:2)) : const Icon(Icons.check), label: Text(_saving ? 'Menyimpan...' : 'Simpan'))],
