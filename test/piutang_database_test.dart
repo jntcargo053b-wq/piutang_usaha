@@ -183,7 +183,7 @@ void main() {
     await db.insertTransaksi(
       TransaksiKredit(
         pelangganId: cid,
-        tanggal: DateTime(2026, 8, 20),
+        tanggal: DateTime(2026, 8, 10), // 21 days old
         nomorResi: 'A',
         namaPenerima: 'A',
         kotaTujuan: 'Jakarta',
@@ -193,7 +193,7 @@ void main() {
     await db.insertTransaksi(
       TransaksiKredit(
         pelangganId: cid,
-        tanggal: DateTime(2026, 7, 1),
+        tanggal: DateTime(2026, 7, 20), // 42 days old
         nomorResi: 'B',
         namaPenerima: 'B',
         kotaTujuan: 'Jakarta',
@@ -203,7 +203,7 @@ void main() {
     await db.insertTransaksi(
       TransaksiKredit(
         pelangganId: cid,
-        tanggal: DateTime(2026, 5, 1),
+        tanggal: DateTime(2026, 6, 15), // 77 days old
         nomorResi: 'C',
         namaPenerima: 'C',
         kotaTujuan: 'Jakarta',
@@ -213,7 +213,7 @@ void main() {
     await db.insertTransaksi(
       TransaksiKredit(
         pelangganId: cid,
-        tanggal: DateTime(2026, 1, 1),
+        tanggal: DateTime(2026, 1, 1), // 242 days old
         nomorResi: 'D',
         namaPenerima: 'D',
         kotaTujuan: 'Jakarta',
