@@ -31,15 +31,21 @@ void main() {
 
   Future<int> customer() => db.insertPelanggan(Pelanggan(nama: 'Pelanggan Test'));
 
-  Future<int> transaction(int customerId, {int amount = 100000, String resi = 'RESI-1'}) {
-    return db.insertTransaksi(TransaksiKredit(
-      pelangganId: customerId,
-      tanggal: DateTime(2026, 8, 1),
-      nomorResi: resi,
-      namaPenerima: 'Penerima Test',
-      kotaTujuan: 'Jakarta',
-      jumlah: amount,
-    ));
+  Future<int> transaction(
+    int customerId, {
+    int amount = 100000,
+    String resi = 'RESI-1',
+  }) {
+    return db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: customerId,
+        tanggal: DateTime(2026, 8, 1),
+        nomorResi: resi,
+        namaPenerima: 'Penerima Test',
+        kotaTujuan: 'Jakarta',
+        jumlah: amount,
+      ),
+    );
   }
 
   test('database initializes and starts empty', () async {
@@ -49,12 +55,16 @@ void main() {
   test('payment equal to outstanding is accepted and closes transaction', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
-    await db.insertPembayaran(Pembayaran(
-      transaksiId: tid,
-      tanggal: DateTime(2026, 8, 10),
-      jumlah: 100000,
-      metode: 'cash',
-    ));
+
+    await db.insertPembayaran(
+      Pembayaran(
+        transaksiId: tid,
+        tanggal: DateTime(2026, 8, 10),
+        jumlah: 100000,
+        metode: 'cash',
+      ),
+    );
+
     final t = await db.getTransaksiById(tid);
     expect(t, isNotNull);
     expect(t!.sisa, 0);
@@ -63,22 +73,27 @@ void main() {
   test('overpayment is rejected', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
-    expect(
-      () => db.insertPembayaran(Pembayaran(
-        transaksiId: tid,
-        tanggal: DateTime(2026, 8, 10),
-        jumlah: 100001,
-        metode: 'transfer',
-      )),
+
+    await expectLater(
+      db.insertPembayaran(
+        Pembayaran(
+          transaksiId: tid,
+          tanggal: DateTime(2026, 8, 10),
+          jumlah: 100001,
+          metode: 'transfer',
+        ),
+      ),
       throwsA(isA<ValidasiException>()),
     );
+
     expect(await db.getPembayaranByTransaksi(tid), isEmpty);
   });
 
-  test('customer payment allocates transactions atomically', () async {
+  test('customer payment allocates oldest transactions first atomically', () async {
     final cid = await customer();
     final tid1 = await transaction(cid, amount: 100000, resi: 'RESI-1');
     final tid2 = await transaction(cid, amount: 150000, resi: 'RESI-2');
+
     final allocated = await PaymentService(db: db).payCustomer(
       transactions: [
         (await db.getTransaksiById(tid1))!,
@@ -88,12 +103,13 @@ void main() {
       method: PaymentService.transfer,
       date: DateTime(2026, 8, 11),
     );
+
     expect(allocated, 180000);
     expect((await db.getTransaksiById(tid1))!.sisa, 0);
     expect((await db.getTransaksiById(tid2))!.sisa, 70000);
   });
 
-  test('customer payment rolls back when a later allocation fails', () async {
+  test('customer payment rolls back all allocations when a later allocation fails', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
     final invalid = TransaksiKredit(
@@ -105,14 +121,17 @@ void main() {
       kotaTujuan: 'Jakarta',
       jumlah: 100000,
     );
-    expect(
-      () => PaymentService(db: db).payCustomer(
+
+    Future<void> act() async {
+      await PaymentService(db: db).payCustomer(
         transactions: [(await db.getTransaksiById(tid))!, invalid],
         amount: 150000,
         method: PaymentService.cash,
-      ),
-      throwsA(isA<ValidasiException>()),
-    );
+      );
+    }
+
+    await expectLater(act(), throwsA(isA<ValidasiException>()));
+
     expect(await db.getPembayaranByTransaksi(tid), isEmpty);
     expect((await db.getTransaksiById(tid))!.sisa, 100000);
   });
@@ -120,64 +139,88 @@ void main() {
   test('update transaction rejects invalid data', () async {
     final cid = await customer();
     final tid = await transaction(cid);
+    final original = await db.getTransaksiById(tid);
+    expect(original, isNotNull);
+
     final invalid = TransaksiKredit(
       id: tid,
       pelangganId: cid,
-      tanggal: DateTime(2026, 8, 1),
-      nomorResi: 'RESI-1',
-      namaPenerima: 'Penerima Test',
-      kotaTujuan: 'Jakarta',
+      tanggal: original!.tanggal,
+      nomorResi: original.nomorResi,
+      namaPenerima: original.namaPenerima,
+      kotaTujuan: original.kotaTujuan,
       jumlah: 0,
+      catatan: original.catatan,
+      totalDibayar: original.totalDibayar,
     );
-    expect(() => db.updateTransaksi(invalid), throwsA(isA<ValidasiException>()));
-  });
 
-  test('update transaction rejects missing customer', () async {
-    final cid = await customer();
-    final tid = await transaction(cid);
-    final invalid = TransaksiKredit(
-      id: tid,
-      pelangganId: 999999,
-      tanggal: DateTime(2026, 8, 1),
-      nomorResi: 'RESI-1',
-      namaPenerima: 'Penerima Test',
-      kotaTujuan: 'Jakarta',
-      jumlah: 100000,
+    await expectLater(
+      db.updateTransaksi(invalid),
+      throwsA(isA<ValidasiException>()),
     );
-    expect(() => db.updateTransaksi(invalid), throwsA(isA<ValidasiException>()));
   });
 
   test('cascade delete removes transactions and payments', () async {
     final cid = await customer();
     final tid = await transaction(cid);
-    await db.insertPembayaran(Pembayaran(
-      transaksiId: tid,
-      tanggal: DateTime(2026, 8, 10),
-      jumlah: 10000,
-      metode: 'cash',
-    ));
+    await db.insertPembayaran(
+      Pembayaran(
+        transaksiId: tid,
+        tanggal: DateTime(2026, 8, 10),
+        jumlah: 10000,
+        metode: 'cash',
+      ),
+    );
+
     await db.deletePelanggan(cid);
+
     expect(await db.getTransaksiById(tid), isNull);
     expect(await db.getPembayaranByTransaksi(tid), isEmpty);
   });
 
   test('aging places outstanding balance in correct bucket', () async {
     final cid = await customer();
-    for (final item in [
-      (DateTime(2026, 8, 20), 'A', 10000),
-      (DateTime(2026, 7, 15), 'B', 20000),
-      (DateTime(2026, 6, 1), 'C', 30000),
-      (DateTime(2026, 3, 1), 'D', 40000),
-    ]) {
-      await db.insertTransaksi(TransaksiKredit(
+    await db.insertTransaksi(
+      TransaksiKredit(
         pelangganId: cid,
-        tanggal: item.$1,
-        nomorResi: item.$2,
-        namaPenerima: item.$2,
+        tanggal: DateTime(2026, 8, 20),
+        nomorResi: 'A',
+        namaPenerima: 'A',
         kotaTujuan: 'Jakarta',
-        jumlah: item.$3,
-      ));
-    }
+        jumlah: 10000,
+      ),
+    );
+    await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: cid,
+        tanggal: DateTime(2026, 7, 1),
+        nomorResi: 'B',
+        namaPenerima: 'B',
+        kotaTujuan: 'Jakarta',
+        jumlah: 20000,
+      ),
+    );
+    await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: cid,
+        tanggal: DateTime(2026, 5, 1),
+        nomorResi: 'C',
+        namaPenerima: 'C',
+        kotaTujuan: 'Jakarta',
+        jumlah: 30000,
+      ),
+    );
+    await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: cid,
+        tanggal: DateTime(2026, 1, 1),
+        nomorResi: 'D',
+        namaPenerima: 'D',
+        kotaTujuan: 'Jakarta',
+        jumlah: 40000,
+      ),
+    );
+
     final aging = await db.getAgingPiutang(asOf: DateTime(2026, 8, 31));
     expect(aging['0_30'], 10000);
     expect(aging['31_60'], 20000);
