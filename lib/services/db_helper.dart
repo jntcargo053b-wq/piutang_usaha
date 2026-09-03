@@ -14,7 +14,7 @@ class ValidasiException implements Exception {
 class DbHelper {
   static final DbHelper instance = DbHelper._internal();
   DbHelper._internal();
-  static const int _dbVersion = 5;
+  static const int _dbVersion = 6;
   static Database? _db;
 
   Future<Database> get database async {
@@ -37,7 +37,7 @@ class DbHelper {
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''CREATE TABLE pelanggan (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT NOT NULL, alamat TEXT, no_hp TEXT, created_at TEXT NOT NULL)''');
-    await db.execute('''CREATE TABLE transaksi_kredit (id INTEGER PRIMARY KEY AUTOINCREMENT, pelanggan_id INTEGER NOT NULL, tanggal TEXT NOT NULL, nomor_resi TEXT NOT NULL, nama_penerima TEXT NOT NULL, kota_tujuan TEXT NOT NULL, deskripsi TEXT NOT NULL DEFAULT '', jumlah INTEGER NOT NULL, FOREIGN KEY (pelanggan_id) REFERENCES pelanggan (id) ON DELETE CASCADE)''');
+    await db.execute('''CREATE TABLE transaksi_kredit (id INTEGER PRIMARY KEY AUTOINCREMENT, pelanggan_id INTEGER NOT NULL, tanggal TEXT NOT NULL, nomor_resi TEXT NOT NULL, nama_penerima TEXT NOT NULL, kota_tujuan TEXT NOT NULL, deskripsi TEXT NOT NULL DEFAULT '', jumlah INTEGER NOT NULL, berat REAL NOT NULL DEFAULT 0, quantity INTEGER NOT NULL DEFAULT 1, FOREIGN KEY (pelanggan_id) REFERENCES pelanggan (id) ON DELETE CASCADE)''');
     await db.execute('''CREATE TABLE pembayaran (id INTEGER PRIMARY KEY AUTOINCREMENT, transaksi_id INTEGER NOT NULL, tanggal TEXT NOT NULL, jumlah INTEGER NOT NULL, metode TEXT, keterangan TEXT, FOREIGN KEY (transaksi_id) REFERENCES transaksi_kredit (id) ON DELETE CASCADE)''');
     await _buatIndex(db);
   }
@@ -70,6 +70,10 @@ class DbHelper {
     }
     if (oldVersion < 4) await db.execute('CREATE INDEX IF NOT EXISTS idx_pembayaran_tanggal ON pembayaran (tanggal)');
     if (oldVersion < 5) await db.execute("ALTER TABLE pembayaran ADD COLUMN metode TEXT");
+    if (oldVersion < 6) {
+      await db.execute("ALTER TABLE transaksi_kredit ADD COLUMN berat REAL NOT NULL DEFAULT 0");
+      await db.execute("ALTER TABLE transaksi_kredit ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+    }
   }
 
   Future<int> insertPelanggan(Pelanggan p) async {
@@ -109,6 +113,8 @@ class DbHelper {
     if (t.id == null) throw ValidasiException('ID transaksi tidak valid.');
     if (t.pelangganId <= 0) throw ValidasiException('Pelanggan transaksi tidak valid.');
     if (t.jumlah <= 0) throw ValidasiException('Jumlah transaksi harus lebih dari 0.');
+    if (t.berat < 0) throw ValidasiException('Berat tidak boleh negatif.');
+    if (t.quantity <= 0) throw ValidasiException('Quantity harus lebih dari 0.');
     if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) {
       throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
     }
@@ -116,6 +122,8 @@ class DbHelper {
 
   Future<int> insertTransaksi(TransaksiKredit t) async {
     if (t.jumlah <= 0) throw ValidasiException('Jumlah transaksi harus lebih dari 0.');
+    if (t.berat < 0) throw ValidasiException('Berat tidak boleh negatif.');
+    if (t.quantity <= 0) throw ValidasiException('Quantity harus lebih dari 0.');
     if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) {
       throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
     }
@@ -178,7 +186,7 @@ class DbHelper {
 
   Future<List<Map<String, dynamic>>> getRekapPeriode({required DateTime dari, required DateTime sampai}) async {
     final a = dari.toIso8601String(), b = DateTime(sampai.year, sampai.month, sampai.day + 1).toIso8601String();
-    return (await database).rawQuery('''SELECT t.id,t.tanggal,t.deskripsi,t.jumlah,t.nomor_resi,t.nama_penerima,t.kota_tujuan,pl.nama AS nama_pelanggan,COALESCE((SELECT SUM(p1.jumlah) FROM pembayaran p1 WHERE p1.transaksi_id=t.id),0) AS total_dibayar,COALESCE((SELECT SUM(p2.jumlah) FROM pembayaran p2 WHERE p2.transaksi_id=t.id AND p2.tanggal>=? AND p2.tanggal<?),0) AS dibayar_periode FROM transaksi_kredit t JOIN pelanggan pl ON pl.id=t.pelanggan_id WHERE t.tanggal>=? AND t.tanggal<? ORDER BY t.tanggal ASC,t.id ASC''', [a, b, a, b]);
+    return (await database).rawQuery('''SELECT t.id,t.tanggal,t.deskripsi,t.jumlah,t.berat,t.quantity,t.nomor_resi,t.nama_penerima,t.kota_tujuan,pl.nama AS nama_pelanggan,COALESCE((SELECT SUM(p1.jumlah) FROM pembayaran p1 WHERE p1.transaksi_id=t.id),0) AS total_dibayar,COALESCE((SELECT SUM(p2.jumlah) FROM pembayaran p2 WHERE p2.transaksi_id=t.id AND p2.tanggal>=? AND p2.tanggal<?),0) AS dibayar_periode FROM transaksi_kredit t JOIN pelanggan pl ON pl.id=t.pelanggan_id WHERE t.tanggal>=? AND t.tanggal<? ORDER BY t.tanggal ASC,t.id ASC''', [a, b, a, b]);
   }
 
   Future<List<Map<String, dynamic>>> getPembayaranPeriode({required DateTime dari, required DateTime sampai}) async {
