@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/transaksi_kredit.dart';
 import '../services/payment_service.dart';
 import '../utils/formatter.dart';
+import '../utils/rupiah_input_formatter.dart';
 
 class CustomerPaymentSheet extends StatefulWidget {
   final List<TransaksiKredit> transactions;
@@ -73,7 +74,13 @@ class _CustomerPaymentSheetState extends State<CustomerPaymentSheet> {
             const SizedBox(height: 8),
             ..._outstanding.map((t) => ListTile(dense: true, contentPadding: EdgeInsets.zero, leading: const Icon(Icons.receipt_long_outlined), title: Text(t.nomorResi, maxLines: 1, overflow: TextOverflow.ellipsis), trailing: Text(Formatter.rupiah(t.sisa)))),
             const SizedBox(height: 8),
-            TextField(controller: _amount, enabled: !disabled, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp ', border: OutlineInputBorder())),
+            TextField(
+              controller: _amount,
+              enabled: !disabled,
+              keyboardType: TextInputType.number,
+              inputFormatters: const [RupiahInputFormatter()],
+              decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp ', border: OutlineInputBorder()),
+            ),
             const SizedBox(height: 8),
             ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.calendar_today_outlined), title: const Text('Tanggal pembayaran'), subtitle: Text(Formatter.tanggalPanjang(_date)), trailing: const Icon(Icons.edit_calendar_outlined), onTap: disabled ? null : _pickDate),
             const Divider(),
