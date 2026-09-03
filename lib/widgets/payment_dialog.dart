@@ -4,6 +4,7 @@ import '../models/pembayaran.dart';
 import '../models/transaksi_kredit.dart';
 import '../providers/piutang_provider.dart';
 import '../utils/formatter.dart';
+import '../utils/rupiah_input_formatter.dart';
 
 class PaymentDialog extends StatefulWidget {
   final TransaksiKredit transaksi;
@@ -67,7 +68,12 @@ class _PaymentDialogState extends State<PaymentDialog> {
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Card(color: scheme.surfaceContainerHighest, child: Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Sisa tagihan'), Text(Formatter.rupiah(widget.transaksi.sisa), style: const TextStyle(fontWeight: FontWeight.bold))]))),
         const SizedBox(height: 12),
-        TextField(controller: _jumlah, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp ', border: OutlineInputBorder())),
+        TextField(
+          controller: _jumlah,
+          keyboardType: TextInputType.number,
+          inputFormatters: const [RupiahInputFormatter()],
+          decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp ', border: OutlineInputBorder()),
+        ),
         const SizedBox(height: 12),
         ListTile(
           contentPadding: EdgeInsets.zero,
