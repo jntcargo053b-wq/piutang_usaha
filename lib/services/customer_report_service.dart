@@ -90,7 +90,7 @@ class CustomerReportService {
       ]));
     }
     rows.add(pw.TableRow(decoration: const pw.BoxDecoration(color: PdfColors.grey100), children: [
-      _c(''), _c(''), _c(''), _c(''), _c('TOTAL TAGIHAN', bold: true),
+      _c(''), _c(''), _c(''), _c(''), _c('TOTAL', bold: true),
       _c(Formatter.rupiah(ts.fold<int>(0, (s, t) => s + t.jumlah - _paidFor(t, p))), right: true, bold: true),
     ]));
     return pw.Table(border: pw.TableBorder.all(color: PdfColors.grey500, width: .5), columnWidths: const {
@@ -139,7 +139,7 @@ class CustomerReportService {
       final t = sorted[i];
       s.appendRow([IntCellValue(i + 1), TextCellValue(Formatter.tanggalPendek(t.tanggal)), TextCellValue(t.nomorResi), TextCellValue(t.namaPenerima), TextCellValue(t.kotaTujuan), IntCellValue(t.jumlah - _paidFor(t, pembayaran))]);
     }
-    s.appendRow([TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue('TOTAL TAGIHAN'), IntCellValue(remaining)]);
+    s.appendRow([TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue(''), TextCellValue('TOTAL'), IntCellValue(remaining)]);
     s.appendRow([TextCellValue('Total Pembayaran'), IntCellValue(paid)]);
     s.appendRow([TextCellValue('Sisa Tagihan'), IntCellValue(remaining)]);
     s.appendRow([TextCellValue('Terbilang'), TextCellValue('${_terbilang(remaining)} rupiah')]);
