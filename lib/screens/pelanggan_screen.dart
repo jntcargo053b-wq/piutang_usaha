@@ -80,10 +80,14 @@ class _PelangganScreenState extends State<PelangganScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus pelanggan?'),
-        content: Text('Semua transaksi dan pembayaran ${pelanggan.nama} akan ikut terhapus.'),
+        content: Text('Semua transaksi dan pembayaran ${pelanggan.nama} akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
-          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Hapus')),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus'),
+          ),
         ],
       ),
     );
@@ -123,9 +127,39 @@ class _PelangganScreenState extends State<PelangganScreen> {
                 leading: CircleAvatar(child: Text(pelanggan.nama.isEmpty ? '?' : pelanggan.nama[0].toUpperCase())),
                 title: Text(pelanggan.nama, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(pelanggan.noHp ?? '-', maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [Icon(hasDebt ? Icons.warning_amber_rounded : Icons.check_circle_outline, size: 18, color: statusColor), const SizedBox(width: 6), Text(Formatter.rupiah(sisa), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, color: statusColor))]),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(hasDebt ? Icons.warning_amber_rounded : Icons.check_circle_outline, size: 18, color: statusColor),
+                    const SizedBox(width: 6),
+                    Text(Formatter.rupiah(sisa), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)),
+                    PopupMenuButton<String>(
+                      tooltip: 'Menu pelanggan',
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          _form(old: pelanggan);
+                        } else if (value == 'delete') {
+                          _delete(pelanggan);
+                        }
+                      },
+                      itemBuilder: (menuContext) => [
+                        const PopupMenuItem<String>(
+                          value: 'edit',
+                          child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Edit'), contentPadding: EdgeInsets.zero),
+                        ),
+                        PopupMenuItem<String>(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(Icons.delete_outline, color: Theme.of(menuContext).colorScheme.error),
+                            title: Text('Hapus', style: TextStyle(color: Theme.of(menuContext).colorScheme.error)),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
                 onTap: () => _openDetail(pelanggan),
-                onLongPress: () => showModalBottomSheet<void>(context: context, builder: (sheetContext) => SafeArea(child: Wrap(children: [ListTile(leading: const Icon(Icons.edit), title: const Text('Edit'), onTap: () { Navigator.pop(sheetContext); _form(old: pelanggan); }), ListTile(leading: const Icon(Icons.delete), title: const Text('Hapus'), onTap: () { Navigator.pop(sheetContext); _delete(pelanggan); })]))),
               );
             },
           );
