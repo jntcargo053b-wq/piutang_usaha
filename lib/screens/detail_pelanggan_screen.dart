@@ -125,6 +125,8 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     final penerima = TextEditingController();
     final kota = TextEditingController();
     final jumlah = TextEditingController();
+    final berat = TextEditingController();
+    final quantity = TextEditingController(text: '1');
     final catatan = TextEditingController();
     DateTime tanggal = DateTime.now();
     bool saving = false;
@@ -192,6 +194,47 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                       validator: (value) => value == null || value.trim().isEmpty ? 'Kota tujuan wajib dipilih' : null,
                     ),
                     const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: quantity,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Quantity *',
+                              hintText: '1',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              final number = int.tryParse((value ?? '').trim());
+                              if (number == null || number <= 0) return 'Quantity tidak valid';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextFormField(
+                            controller: berat,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Berat (kg) *',
+                              hintText: '0,5',
+                              suffixText: 'kg',
+                              border: OutlineInputBorder(),
+                            ),
+                            validator: (value) {
+                              final number = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
+                              if (number == null || number <= 0) return 'Berat tidak valid';
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: jumlah,
                       keyboardType: TextInputType.number,
@@ -246,6 +289,8 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                                     namaPenerima: penerima.text.trim(),
                                     kotaTujuan: kota.text.trim(),
                                     jumlah: int.parse(jumlah.text.replaceAll('.', '').trim()),
+                                    berat: double.parse(berat.text.trim().replaceAll(',', '.')),
+                                    quantity: int.parse(quantity.text.trim()),
                                     catatan: catatan.text.trim().isEmpty ? null : catatan.text.trim(),
                                   ),
                                 );
@@ -275,6 +320,8 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
       penerima.dispose();
       kota.dispose();
       jumlah.dispose();
+      berat.dispose();
+      quantity.dispose();
       catatan.dispose();
     }
   }
@@ -385,6 +432,8 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                               children: [
                                 Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}', maxLines: 2, overflow: TextOverflow.ellipsis),
                                 const SizedBox(height: 4),
+                                Text('Qty ${transaksi.quantity} • ${_formatBerat(transaksi.berat)} kg'),
+                                const SizedBox(height: 4),
                                 Text(Formatter.tanggalPanjang(transaksi.tanggal)),
                               ],
                             ),
@@ -411,6 +460,11 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                   ),
                 ),
     );
+  }
+
+  String _formatBerat(double value) {
+    if (value == value.roundToDouble()) return value.toInt().toString();
+    return value.toString().replaceAll('.', ',');
   }
 }
 
