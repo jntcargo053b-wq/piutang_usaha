@@ -3,7 +3,7 @@ name: Build Piutang Usaha APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, 'ui/**']
 
 permissions:
   contents: read
@@ -51,7 +51,7 @@ jobs:
           for old, new in replacements:
               text = text.replace(old, new)
 
-          if text == original or 'compileSdk = 36' not in text and 'compileSdk 36' not in text:
+          if text == original or ('compileSdk = 36' not in text and 'compileSdk 36' not in text):
               raise SystemExit(f'Could not set compileSdk 36 in {path}')
 
           path.write_text(text)
