@@ -7,7 +7,6 @@ import 'detail_pelanggan_screen.dart';
 
 class PelangganScreen extends StatefulWidget {
   const PelangganScreen({super.key});
-
   @override
   State<PelangganScreen> createState() => _PelangganScreenState();
 }
@@ -82,10 +81,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   const SizedBox(height: 18),
                   Text(
                     old == null ? 'Tambah Pelanggan' : 'Edit Pelanggan',
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 18),
                   TextFormField(
@@ -249,9 +245,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
       ),
       body: Consumer<PiutangProvider>(
         builder: (context, provider, _) {
-          if (provider.loading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+          if (provider.loading) return const Center(child: CircularProgressIndicator());
 
           final customers = provider.daftarPelanggan.where((pelanggan) {
             if (_query.isEmpty) return true;
@@ -286,18 +280,11 @@ class _PelangganScreenState extends State<PelangganScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.people_outline,
-                                size: 58,
-                                color: scheme.primary,
-                              ),
+                              Icon(Icons.people_outline, size: 58, color: scheme.primary),
                               const SizedBox(height: 12),
                               const Text(
                                 'Belum ada pelanggan.',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 6),
                               const Text(
@@ -332,9 +319,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                           backgroundColor: scheme.primaryContainer,
                                           foregroundColor: scheme.primary,
                                           child: Text(
-                                            pelanggan.nama.isEmpty
-                                                ? '?'
-                                                : pelanggan.nama[0].toUpperCase(),
+                                            pelanggan.nama.isEmpty ? '?' : pelanggan.nama[0].toUpperCase(),
                                             style: const TextStyle(fontWeight: FontWeight.w800),
                                           ),
                                         ),
@@ -367,10 +352,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                               Formatter.rupiah(sisa),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w800,
-                                                color: statusColor,
-                                              ),
+                                              style: TextStyle(fontWeight: FontWeight.w800, color: statusColor),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
