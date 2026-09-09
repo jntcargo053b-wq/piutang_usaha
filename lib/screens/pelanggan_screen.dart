@@ -7,13 +7,36 @@ import 'detail_pelanggan_screen.dart';
 
 class PelangganScreen extends StatefulWidget {
   const PelangganScreen({super.key});
-  @override State<PelangganScreen> createState() => _PelangganScreenState();
+
+  @override
+  State<PelangganScreen> createState() => _PelangganScreenState();
 }
 
 class _PelangganScreenState extends State<PelangganScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
   @override
-  void initState() { super.initState(); WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) context.read<PiutangProvider>().muatPelanggan(); }); }
-  String _friendlyError(Object e) { final text = e.toString(); return text.startsWith('Exception: ') ? text.substring(11) : text; }
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      if (mounted) setState(() => _query = _searchController.text.trim().toLowerCase());
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<PiutangProvider>().muatPelanggan();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  String _friendlyError(Object e) {
+    final text = e.toString();
+    return text.startsWith('Exception: ') ? text.substring(11) : text;
+  }
 
   Future<void> _form({Pelanggan? old}) async {
     final name = TextEditingController(text: old?.nama ?? '');
@@ -21,48 +44,122 @@ class _PelangganScreenState extends State<PelangganScreen> {
     final address = TextEditingController(text: old?.alamat ?? '');
     final formKey = GlobalKey<FormState>();
     bool saving = false;
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) => Padding(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
           child: Form(
             key: formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(old == null ? 'Tambah Pelanggan' : 'Edit Pelanggan', style: Theme.of(ctx).textTheme.titleLarge),
-                  const SizedBox(height: 16),
-                  TextFormField(controller: name, decoration: const InputDecoration(labelText: 'Nama *'), validator: (v) => v == null || v.trim().isEmpty ? 'Nama wajib diisi' : null),
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    old == null ? 'Tambah Pelanggan' : 'Edit Pelanggan',
+                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 18),
+                  TextFormField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: 'Nama Pelanggan *',
+                      prefixIcon: Icon(Icons.person_outline),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? 'Nama wajib diisi'
+                        : null,
+                  ),
                   const SizedBox(height: 12),
-                  TextField(controller: phone, decoration: const InputDecoration(labelText: 'No. HP')),
+                  TextField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'No. HP',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                  ),
                   const SizedBox(height: 12),
-                  TextField(controller: address, decoration: const InputDecoration(labelText: 'Alamat')),
-                  const SizedBox(height: 16),
+                  TextField(
+                    controller: address,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Alamat',
+                      prefixIcon: Icon(Icons.location_on_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: saving ? null : () async {
-                        if (!formKey.currentState!.validate()) return;
-                        setSheetState(() => saving = true);
-                        try {
-                          final provider = ctx.read<PiutangProvider>();
-                          if (old == null) {
-                            await provider.tambahPelanggan(Pelanggan(nama: name.text.trim(), noHp: phone.text.trim().isEmpty ? null : phone.text.trim(), alamat: address.text.trim().isEmpty ? null : address.text.trim()));
-                          } else {
-                            await provider.updatePelanggan(old.copyWith(nama: name.text.trim(), noHp: phone.text.trim(), alamat: address.text.trim()));
-                          }
-                          if (ctx.mounted) Navigator.pop(ctx);
-                        } catch (e) {
-                          if (ctx.mounted) {
-                            setSheetState(() => saving = false);
-                            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(_friendlyError(e))));
-                          }
-                        }
-                      },
-                      child: saving ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Simpan'),
+                    child: FilledButton(
+                      onPressed: saving
+                          ? null
+                          : () async {
+                              if (!formKey.currentState!.validate()) return;
+                              setSheetState(() => saving = true);
+                              try {
+                                final provider = ctx.read<PiutangProvider>();
+                                if (old == null) {
+                                  await provider.tambahPelanggan(
+                                    Pelanggan(
+                                      nama: name.text.trim(),
+                                      noHp: phone.text.trim().isEmpty
+                                          ? null
+                                          : phone.text.trim(),
+                                      alamat: address.text.trim().isEmpty
+                                          ? null
+                                          : address.text.trim(),
+                                    ),
+                                  );
+                                } else {
+                                  await provider.updatePelanggan(
+                                    old.copyWith(
+                                      nama: name.text.trim(),
+                                      noHp: phone.text.trim(),
+                                      alamat: address.text.trim(),
+                                    ),
+                                  );
+                                }
+                                if (ctx.mounted) Navigator.pop(ctx);
+                              } catch (e) {
+                                if (ctx.mounted) {
+                                  setSheetState(() => saving = false);
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(content: Text(_friendlyError(e))),
+                                  );
+                                }
+                              }
+                            },
+                      child: saving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Simpan Pelanggan'),
                     ),
                   ),
                 ],
@@ -72,7 +169,9 @@ class _PelangganScreenState extends State<PelangganScreen> {
         ),
       ),
     );
-    name.dispose(); phone.dispose(); address.dispose();
+    name.dispose();
+    phone.dispose();
+    address.dispose();
   }
 
   Future<void> _delete(Pelanggan pelanggan) async {
@@ -80,11 +179,18 @@ class _PelangganScreenState extends State<PelangganScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus pelanggan?'),
-        content: Text('Semua transaksi dan pembayaran ${pelanggan.nama} akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.'),
+        content: Text(
+          'Semua transaksi dan pembayaran ${pelanggan.nama} akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Hapus'),
           ),
@@ -92,76 +198,215 @@ class _PelangganScreenState extends State<PelangganScreen> {
       ),
     );
     if (ok != true || !mounted) return;
-    try { await context.read<PiutangProvider>().hapusPelanggan(pelanggan.id!); }
-    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_friendlyError(e)))); }
+    try {
+      await context.read<PiutangProvider>().hapusPelanggan(pelanggan.id!);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_friendlyError(e))),
+        );
+      }
+    }
   }
 
   Future<void> _openDetail(Pelanggan pelanggan) async {
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => DetailPelangganScreen(pelanggan: pelanggan)));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DetailPelangganScreen(pelanggan: pelanggan),
+      ),
+    );
     if (!mounted) return;
     await context.read<PiutangProvider>().muatPelanggan();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Pelanggan')),
-      floatingActionButton: FloatingActionButton(onPressed: _form, child: const Icon(Icons.add)),
+      appBar: AppBar(
+        title: const Text(
+          'Pelanggan',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Tambah pelanggan',
+            onPressed: _form,
+            icon: const Icon(Icons.person_add_alt_1_outlined),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _form,
+        icon: const Icon(Icons.add),
+        label: const Text('Tambah'),
+      ),
       body: Consumer<PiutangProvider>(
         builder: (context, provider, _) {
-          if (provider.loading) return const Center(child: CircularProgressIndicator());
-          if (provider.daftarPelanggan.isEmpty) {
-            return Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.people_outline, size: 52, color: scheme.primary), const SizedBox(height: 12), Text('Belum ada pelanggan.', style: theme.textTheme.titleMedium), const SizedBox(height: 6), Text('Tambahkan pelanggan untuk mulai mencatat transaksi.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium)])));
+          if (provider.loading) {
+            return const Center(child: CircularProgressIndicator());
           }
-          return ListView.separated(
-            itemCount: provider.daftarPelanggan.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final pelanggan = provider.daftarPelanggan[index];
-              final sisa = provider.sisaPelanggan(pelanggan.id!);
-              final hasDebt = sisa > 0;
-              final statusColor = hasDebt ? scheme.error : scheme.primary;
-              return ListTile(
-                leading: CircleAvatar(child: Text(pelanggan.nama.isEmpty ? '?' : pelanggan.nama[0].toUpperCase())),
-                title: Text(pelanggan.nama, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(pelanggan.noHp ?? '-', maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(hasDebt ? Icons.warning_amber_rounded : Icons.check_circle_outline, size: 18, color: statusColor),
-                    const SizedBox(width: 6),
-                    Text(Formatter.rupiah(sisa), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, color: statusColor)),
-                    PopupMenuButton<String>(
-                      tooltip: 'Menu pelanggan',
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          _form(old: pelanggan);
-                        } else if (value == 'delete') {
-                          _delete(pelanggan);
-                        }
-                      },
-                      itemBuilder: (menuContext) => [
-                        const PopupMenuItem<String>(
-                          value: 'edit',
-                          child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Edit'), contentPadding: EdgeInsets.zero),
-                        ),
-                        PopupMenuItem<String>(
-                          value: 'delete',
-                          child: ListTile(
-                            leading: Icon(Icons.delete_outline, color: Theme.of(menuContext).colorScheme.error),
-                            title: Text('Hapus', style: TextStyle(color: Theme.of(menuContext).colorScheme.error)),
-                            contentPadding: EdgeInsets.zero,
+
+          final customers = provider.daftarPelanggan.where((pelanggan) {
+            if (_query.isEmpty) return true;
+            return pelanggan.nama.toLowerCase().contains(_query) ||
+                (pelanggan.noHp ?? '').toLowerCase().contains(_query) ||
+                (pelanggan.alamat ?? '').toLowerCase().contains(_query);
+          }).toList();
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Cari nama, telepon, atau alamat...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : IconButton(
+                            onPressed: _searchController.clear,
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: provider.daftarPelanggan.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 58,
+                                color: scheme.primary,
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Belum ada pelanggan.',
+                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Tambahkan pelanggan untuk mulai mencatat transaksi.',
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-                onTap: () => _openDetail(pelanggan),
-              );
-            },
+                      )
+                    : customers.isEmpty
+                        ? const Center(child: Text('Pelanggan tidak ditemukan.'))
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 90),
+                            itemCount: customers.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 9),
+                            itemBuilder: (context, index) {
+                              final pelanggan = customers[index];
+                              final sisa = provider.sisaPelanggan(pelanggan.id!);
+                              final hasDebt = sisa > 0;
+                              final statusColor = hasDebt ? scheme.error : scheme.primary;
+                              return Card(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(18),
+                                  onTap: () => _openDetail(pelanggan),
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(14, 13, 8, 13),
+                                    child: Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 23,
+                                          backgroundColor: scheme.primaryContainer,
+                                          foregroundColor: scheme.primary,
+                                          child: Text(
+                                            pelanggan.nama.isEmpty
+                                                ? '?'
+                                                : pelanggan.nama[0].toUpperCase(),
+                                            style: const TextStyle(fontWeight: FontWeight.w800),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                pelanggan.nama,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontWeight: FontWeight.w800),
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                pelanggan.noHp ?? 'No. HP belum diisi',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              Formatter.rupiah(sisa),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w800,
+                                                color: statusColor,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              hasDebt ? 'Piutang' : 'Lunas',
+                                              style: TextStyle(fontSize: 11, color: statusColor),
+                                            ),
+                                          ],
+                                        ),
+                                        PopupMenuButton<String>(
+                                          tooltip: 'Menu pelanggan',
+                                          onSelected: (value) {
+                                            if (value == 'edit') _form(old: pelanggan);
+                                            if (value == 'delete') _delete(pelanggan);
+                                          },
+                                          itemBuilder: (menuContext) => [
+                                            const PopupMenuItem<String>(
+                                              value: 'edit',
+                                              child: ListTile(
+                                                leading: Icon(Icons.edit_outlined),
+                                                title: Text('Edit'),
+                                                contentPadding: EdgeInsets.zero,
+                                              ),
+                                            ),
+                                            PopupMenuItem<String>(
+                                              value: 'delete',
+                                              child: ListTile(
+                                                leading: Icon(Icons.delete_outline),
+                                                title: Text('Hapus'),
+                                                contentPadding: EdgeInsets.zero,
+                                                textColor: Theme.of(menuContext).colorScheme.error,
+                                                iconColor: Theme.of(menuContext).colorScheme.error,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+              ),
+            ],
           );
         },
       ),

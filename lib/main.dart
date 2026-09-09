@@ -12,18 +12,67 @@ Future<void> main() async {
 
 class PiutangUsahaApp extends StatelessWidget {
   const PiutangUsahaApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    const seed = Colors.blue;
-    final lightScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light);
-    final darkScheme = ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.dark);
+    const seed = Color(0xFF1769E0);
+    final lightScheme = ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: Brightness.light,
+    );
+    final darkScheme = ColorScheme.fromSeed(
+      seedColor: seed,
+      brightness: Brightness.dark,
+    );
+
     return ChangeNotifierProvider(
       create: (_) => PiutangProvider(),
       child: MaterialApp(
         title: 'Piutang Usaha',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(colorScheme: lightScheme, useMaterial3: true, appBarTheme: const AppBarTheme(centerTitle: true), inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder())),
-        darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true, appBarTheme: const AppBarTheme(centerTitle: true), inputDecorationTheme: const InputDecorationTheme(border: OutlineInputBorder())),
+        theme: ThemeData(
+          colorScheme: lightScheme,
+          useMaterial3: true,
+          scaffoldBackgroundColor: const Color(0xFFF6F8FC),
+          appBarTheme: const AppBarTheme(
+            centerTitle: false,
+            backgroundColor: Color(0xFFF6F8FC),
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+          ),
+          cardTheme: CardTheme(
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFDCE3EF)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFDCE3EF)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: seed, width: 1.5),
+            ),
+          ),
+        ),
+        darkTheme: ThemeData(
+          colorScheme: darkScheme,
+          useMaterial3: true,
+          appBarTheme: const AppBarTheme(centerTitle: false, elevation: 0),
+          inputDecorationTheme: const InputDecorationTheme(
+            border: OutlineInputBorder(),
+          ),
+        ),
         themeMode: ThemeMode.system,
         home: const HomeScreen(),
       ),
