@@ -40,7 +40,7 @@ class PiutangUsahaApp extends StatelessWidget {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
           ),
-          cardTheme: CardThemeData(
+          cardTheme: const CardThemeData(
             elevation: 0,
             margin: EdgeInsets.zero,
             color: Colors.white,
@@ -61,7 +61,7 @@ class PiutangUsahaApp extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: seed, width: 1.5),
+              borderSide: const BorderSide(color: seed, width: 1.5),
             ),
           ),
         ),
