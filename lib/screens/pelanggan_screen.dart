@@ -20,7 +20,9 @@ class _PelangganScreenState extends State<PelangganScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(() {
-      if (mounted) setState(() => _query = _searchController.text.trim().toLowerCase());
+      if (mounted) {
+        setState(() => _query = _searchController.text.trim().toLowerCase());
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<PiutangProvider>().muatPelanggan();
@@ -80,7 +82,10 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   const SizedBox(height: 18),
                   Text(
                     old == null ? 'Tambah Pelanggan' : 'Edit Pelanggan',
-                    style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   TextFormField(
@@ -289,7 +294,10 @@ class _PelangganScreenState extends State<PelangganScreen> {
                               const SizedBox(height: 12),
                               const Text(
                                 'Belum ada pelanggan.',
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
                               const SizedBox(height: 6),
                               const Text(
@@ -389,8 +397,8 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                             PopupMenuItem<String>(
                                               value: 'delete',
                                               child: ListTile(
-                                                leading: Icon(Icons.delete_outline),
-                                                title: Text('Hapus'),
+                                                leading: const Icon(Icons.delete_outline),
+                                                title: const Text('Hapus'),
                                                 contentPadding: EdgeInsets.zero,
                                                 textColor: Theme.of(menuContext).colorScheme.error,
                                                 iconColor: Theme.of(menuContext).colorScheme.error,
