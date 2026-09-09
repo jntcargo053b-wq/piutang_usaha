@@ -40,12 +40,12 @@ class PiutangUsahaApp extends StatelessWidget {
             surfaceTintColor: Colors.transparent,
             elevation: 0,
           ),
-          cardTheme: CardThemeData(
+          cardTheme: CardTheme(
             elevation: 0,
             margin: EdgeInsets.zero,
             color: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(18)),
+              borderRadius: BorderRadius.circular(18),
             ),
           ),
           inputDecorationTheme: InputDecorationTheme(
@@ -53,7 +53,7 @@ class PiutangUsahaApp extends StatelessWidget {
             fillColor: Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Color(0xFFDCE3EF)),
+              borderSide: const BorderSide(color: Color(0xFFDCE3EF)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
