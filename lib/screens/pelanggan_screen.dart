@@ -14,6 +14,7 @@ class PelangganScreen extends StatefulWidget {
 class _PelangganScreenState extends State<PelangganScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
+  String _statusFilter = 'semua';
 
   @override
   void initState() {
@@ -248,16 +249,28 @@ class _PelangganScreenState extends State<PelangganScreen> {
           if (provider.loading) return const Center(child: CircularProgressIndicator());
 
           final customers = provider.daftarPelanggan.where((pelanggan) {
-            if (_query.isEmpty) return true;
-            return pelanggan.nama.toLowerCase().contains(_query) ||
+            final matchesSearch = _query.isEmpty ||
+                pelanggan.nama.toLowerCase().contains(_query) ||
                 (pelanggan.noHp ?? '').toLowerCase().contains(_query) ||
                 (pelanggan.alamat ?? '').toLowerCase().contains(_query);
+            if (!matchesSearch) return false;
+
+            final sisa = provider.sisaPelanggan(pelanggan.id!);
+            if (_statusFilter == 'piutang') return sisa > 0;
+            if (_statusFilter == 'lunas') return sisa <= 0;
+            return true;
           }).toList();
+
+          final totalCustomers = provider.daftarPelanggan.length;
+          final debtCustomers = provider.daftarPelanggan
+              .where((p) => provider.sisaPelanggan(p.id!) > 0)
+              .length;
+          final paidCustomers = totalCustomers - debtCustomers;
 
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
@@ -272,6 +285,30 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   ),
                 ),
               ),
+              SizedBox(
+                height: 44,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _filterChip(
+                      label: 'Semua ($totalCustomers)',
+                      value: 'semua',
+                    ),
+                    const SizedBox(width: 8),
+                    _filterChip(
+                      label: 'Piutang ($debtCustomers)',
+                      value: 'piutang',
+                    ),
+                    const SizedBox(width: 8),
+                    _filterChip(
+                      label: 'Lunas ($paidCustomers)',
+                      value: 'lunas',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               Expanded(
                 child: provider.daftarPelanggan.isEmpty
                     ? Center(
@@ -296,7 +333,28 @@ class _PelangganScreenState extends State<PelangganScreen> {
                         ),
                       )
                     : customers.isEmpty
-                        ? const Center(child: Text('Pelanggan tidak ditemukan.'))
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.filter_alt_off_outlined, size: 46, color: scheme.primary),
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    'Tidak ada pelanggan yang sesuai.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Coba ubah kata pencarian atau filter status.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
                         : ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 0, 20, 90),
                             itemCount: customers.length,
@@ -399,6 +457,21 @@ class _PelangganScreenState extends State<PelangganScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _filterChip({required String label, required String value}) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _statusFilter == value,
+      onSelected: (_) => setState(() => _statusFilter = value),
+      showCheckmark: false,
+      labelStyle: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: _statusFilter == value
+            ? Theme.of(context).colorScheme.onSecondaryContainer
+            : Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
   }
