@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/pelanggan.dart';
 import '../providers/piutang_provider.dart';
 import '../utils/formatter.dart';
+import '../services/transaction_search_service.dart';
 import 'detail_pelanggan_screen.dart';
 
 class PelangganScreen extends StatefulWidget {
@@ -15,22 +16,41 @@ class _PelangganScreenState extends State<PelangganScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   String _statusFilter = 'semua';
+  Set<int> _resiCustomerIds = <int>{};
+  int _searchGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    _searchController.addListener(() {
-      if (mounted) {
-        setState(() => _query = _searchController.text.trim().toLowerCase());
-      }
-    });
+    _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<PiutangProvider>().muatPelanggan();
     });
   }
 
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (mounted) setState(() => _query = query);
+
+    final generation = ++_searchGeneration;
+    if (query.length < 2) {
+      if (mounted) setState(() => _resiCustomerIds = <int>{});
+      return;
+    }
+
+    TransactionSearchService.findCustomerIdsByResi(query).then((ids) {
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() => _resiCustomerIds = ids);
+    }).catchError((_) {
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() => _resiCustomerIds = <int>{});
+    });
+  }
+
   @override
   void dispose() {
+    _searchGeneration++;
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -249,10 +269,13 @@ class _PelangganScreenState extends State<PelangganScreen> {
           if (provider.loading) return const Center(child: CircularProgressIndicator());
 
           final customers = provider.daftarPelanggan.where((pelanggan) {
-            final matchesSearch = _query.isEmpty ||
+            final matchesCustomerSearch = _query.isEmpty ||
                 pelanggan.nama.toLowerCase().contains(_query) ||
                 (pelanggan.noHp ?? '').toLowerCase().contains(_query) ||
                 (pelanggan.alamat ?? '').toLowerCase().contains(_query);
+            final matchesResiSearch =
+                _query.length >= 2 && _resiCustomerIds.contains(pelanggan.id);
+            final matchesSearch = matchesCustomerSearch || matchesResiSearch;
             if (!matchesSearch) return false;
 
             final sisa = provider.sisaPelanggan(pelanggan.id!);
@@ -274,7 +297,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    hintText: 'Cari nama, telepon, atau alamat...',
+                    hintText: 'Cari nama, telepon, alamat, atau nomor resi...',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _query.isEmpty
                         ? null
@@ -348,7 +371,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   const Text(
-                                    'Coba ubah kata pencarian atau filter status.',
+                                    'Coba ubah kata pencarian, nomor resi, atau filter status.',
                                     textAlign: TextAlign.center,
                                   ),
                                 ],
