@@ -174,6 +174,7 @@ class CustomerReportService {
     final remaining = (total - paid).clamp(0, total);
     final e = Excel.createExcel();
     final s = e['Laporan'];
+    e.delete('Sheet1');
     s.appendRow([TextCellValue(settings.companyName)]);
     s.appendRow([TextCellValue(settings.reportTitle)]);
     s.appendRow([TextCellValue('Pelanggan'), TextCellValue(namaPelanggan)]);
