@@ -202,6 +202,7 @@ class ExportService {
     final settings = await ReportHeaderSettings.load();
     final excel = Excel.createExcel();
     final sheet = excel['Rekap'];
+    excel.delete('Sheet1');
     final numberStyle = CellStyle(
       numberFormat: const CustomNumericNumFormat(formatCode: '#,##0'),
       horizontalAlign: HorizontalAlign.Right,
