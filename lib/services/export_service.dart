@@ -52,6 +52,17 @@ class ExportService {
       ];
     }).toList();
     final doc = pw.Document();
+    const columnWidths = <int, pw.TableColumnWidth>{
+      0: pw.FixedColumnWidth(58),
+      1: pw.FixedColumnWidth(105),
+      2: pw.FixedColumnWidth(80),
+      3: pw.FixedColumnWidth(110),
+      4: pw.FixedColumnWidth(90),
+      5: pw.FixedColumnWidth(80),
+      6: pw.FixedColumnWidth(80),
+      7: pw.FixedColumnWidth(95),
+      8: pw.FixedColumnWidth(80),
+    };
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4.landscape,
@@ -128,6 +139,7 @@ class ExportService {
               'Sisa',
             ],
             data: data,
+            columnWidths: columnWidths,
             cellAlignments: const {
               5: pw.Alignment.centerRight,
               6: pw.Alignment.centerRight,
@@ -144,26 +156,31 @@ class ExportService {
             cellPadding: const pw.EdgeInsets.all(4),
           ),
           pw.SizedBox(height: 4),
-          pw.Container(
-            decoration: const pw.BoxDecoration(color: PdfColors.grey100),
-            padding: const pw.EdgeInsets.all(5),
-            child: pw.Row(
-              children: [
-                pw.Expanded(
-                  child: pw.Text(
-                    'TOTAL',
-                    style: pw.TextStyle(
-                      fontSize: 8,
-                      fontWeight: pw.FontWeight.bold,
+          pw.Table(
+            columnWidths: columnWidths,
+            border: pw.TableBorder.all(color: PdfColors.grey500, width: .5),
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(5),
+                    child: pw.Text(
+                      'TOTAL',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                _totalCell(totalKredit),
-                _totalCell(totalDibayar),
-                _totalCell(totalDibayarPeriode, width: 88),
-                _totalCell(totalSisa),
-              ],
-            ),
+                  ...List.generate(4, (_) => pw.SizedBox()),
+                  _totalCell(totalKredit),
+                  _totalCell(totalDibayar),
+                  _totalCell(totalDibayarPeriode),
+                  _totalCell(totalSisa),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -184,14 +201,16 @@ class ExportService {
     );
   }
 
-  static pw.Widget _totalCell(int value, {double width = 78}) => pw.SizedBox(
-        width: width,
-        child: pw.Text(
-          Formatter.rupiah(value),
-          textAlign: pw.TextAlign.right,
-          style: pw.TextStyle(
-            fontSize: 8,
-            fontWeight: pw.FontWeight.bold,
+  static pw.Widget _totalCell(int value) => pw.Padding(
+        padding: const pw.EdgeInsets.all(5),
+        child: pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            Formatter.rupiah(value),
+            style: pw.TextStyle(
+              fontSize: 8,
+              fontWeight: pw.FontWeight.bold,
+            ),
           ),
         ),
       );
