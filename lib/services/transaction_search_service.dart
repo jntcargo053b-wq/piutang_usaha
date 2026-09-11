@@ -1,4 +1,3 @@
-import '../models/pelanggan.dart';
 import 'db_helper.dart';
 
 class TransactionSearchService {
