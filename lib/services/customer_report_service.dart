@@ -74,7 +74,7 @@ class CustomerReportService {
     final suffix = type == CustomerReportType.summary ? 'ringkas' : 'lengkap';
     final file = File(p.join(dir.path, 'laporan_${safe}_${suffix}_${DateTime.now().millisecondsSinceEpoch}.pdf'));
     await file.writeAsBytes(await doc.save());
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan ${suffix} pelanggan $namaPelanggan'));
+    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan $suffix pelanggan $namaPelanggan'));
   }
 
   static Future<pw.MemoryImage?> _loadLogo(String? logoPath) async {
@@ -108,11 +108,11 @@ class CustomerReportService {
           _c('${t.quantity}', right: true), _c(_formatBerat(t.berat), right: true), _c(Formatter.rupiah(t.jumlah), right: true),
         ]));
       } else {
-        final paid = _paidFor(t, p);
-        final sisa = (t.jumlah - paid).clamp(0, t.jumlah);
+        final paidForTransaction = _paidFor(t, p);
+        final sisa = (t.jumlah - paidForTransaction).clamp(0, t.jumlah);
         rows.add(pw.TableRow(children: [
           _c('${i + 1}'), _c(Formatter.tanggalPendek(t.tanggal)), _c(t.nomorResi), _c(t.namaPenerima), _c(t.kotaTujuan),
-          _c(Formatter.rupiah(t.jumlah), right: true), _c(Formatter.rupiah(paid), right: true), _c(Formatter.rupiah(sisa), right: true),
+          _c(Formatter.rupiah(t.jumlah), right: true), _c(Formatter.rupiah(paidForTransaction), right: true), _c(Formatter.rupiah(sisa), right: true),
         ]));
       }
     }
@@ -208,6 +208,6 @@ class CustomerReportService {
     final suffix = type == CustomerReportType.summary ? 'ringkas' : 'lengkap';
     final f = File(p.join(dir.path, 'laporan_${safe}_${suffix}_${DateTime.now().millisecondsSinceEpoch}.xlsx'));
     await f.writeAsBytes(bytes);
-    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: 'Laporan ${suffix} pelanggan $namaPelanggan'));
+    await SharePlus.instance.share(ShareParams(files: [XFile(f.path)], text: 'Laporan $suffix pelanggan $namaPelanggan'));
   }
 }
