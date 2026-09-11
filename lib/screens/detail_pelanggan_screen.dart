@@ -16,9 +16,7 @@ import '../widgets/payment_dialog.dart';
 
 class DetailPelangganScreen extends StatefulWidget {
   final Pelanggan pelanggan;
-
   const DetailPelangganScreen({super.key, required this.pelanggan});
-
   @override
   State<DetailPelangganScreen> createState() => _DetailPelangganScreenState();
 }
@@ -64,42 +62,84 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     try {
       final pembayaran = await _loadPembayaran();
       if (!mounted) return;
-      await showModalBottomSheet<void>(
+      final type = await showModalBottomSheet<CustomerReportType>(
         context: context,
+        showDragHandle: true,
+        builder: (sheetContext) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                title: Text('Jenis Laporan', style: TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text('Pilih isi laporan pelanggan yang ingin dibuat.'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.receipt_long_outlined),
+                title: const Text('Ringkas — Total Transaksi'),
+                subtitle: const Text('Riwayat transaksi dan nilai transaksi asli.'),
+                onTap: () => Navigator.pop(sheetContext, CustomerReportType.summary),
+              ),
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: const Text('Lengkap — Transaksi & Piutang'),
+                subtitle: const Text('Total transaksi, pembayaran, dan sisa tagihan.'),
+                onTap: () => Navigator.pop(sheetContext, CustomerReportType.complete),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      );
+      if (!mounted || type == null) return;
+
+      final format = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
         builder: (sheetContext) => SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.picture_as_pdf),
-                title: const Text('Laporan PDF'),
-                subtitle: const Text('Daftar transaksi pelanggan'),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  await CustomerReportService.sharePdf(
-                    namaPelanggan: widget.pelanggan.nama,
-                    transaksi: rows,
-                    pembayaran: pembayaran,
-                  );
-                },
+                title: Text(
+                  type == CustomerReportType.summary ? 'Ringkas — Pilih Format' : 'Lengkap — Pilih Format',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                subtitle: const Text('Pilih format laporan yang akan dibagikan.'),
               ),
               ListTile(
-                leading: const Icon(Icons.table_chart),
-                title: const Text('Laporan Excel'),
-                subtitle: const Text('Daftar transaksi pelanggan'),
-                onTap: () async {
-                  Navigator.pop(sheetContext);
-                  await CustomerReportService.shareExcel(
-                    namaPelanggan: widget.pelanggan.nama,
-                    transaksi: rows,
-                    pembayaran: pembayaran,
-                  );
-                },
+                leading: const Icon(Icons.picture_as_pdf),
+                title: const Text('PDF'),
+                subtitle: const Text('Laporan siap cetak dan dibagikan.'),
+                onTap: () => Navigator.pop(sheetContext, 'pdf'),
               ),
+              ListTile(
+                leading: const Icon(Icons.table_chart_outlined),
+                title: const Text('Excel'),
+                subtitle: const Text('Laporan dalam bentuk spreadsheet.'),
+                onTap: () => Navigator.pop(sheetContext, 'excel'),
+              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
       );
+      if (!mounted || format == null) return;
+
+      if (format == 'pdf') {
+        await CustomerReportService.sharePdf(
+          namaPelanggan: widget.pelanggan.nama,
+          transaksi: rows,
+          pembayaran: pembayaran,
+          type: type,
+        );
+      } else {
+        await CustomerReportService.shareExcel(
+          namaPelanggan: widget.pelanggan.nama,
+          transaksi: rows,
+          pembayaran: pembayaran,
+          type: type,
+        );
+      }
     } catch (e) {
       if (mounted) _showError('Gagal membuat laporan: $e');
     }
@@ -201,11 +241,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                             controller: quantity,
                             keyboardType: TextInputType.number,
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Quantity *',
-                              hintText: '1',
-                              border: OutlineInputBorder(),
-                            ),
+                            decoration: const InputDecoration(labelText: 'Quantity *', hintText: '1', border: OutlineInputBorder()),
                             validator: (value) {
                               final number = int.tryParse((value ?? '').trim());
                               if (number == null || number <= 0) return 'Quantity tidak valid';
@@ -219,12 +255,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                             controller: berat,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Berat (kg) *',
-                              hintText: '0,5',
-                              suffixText: 'kg',
-                              border: OutlineInputBorder(),
-                            ),
+                            decoration: const InputDecoration(labelText: 'Berat (kg) *', hintText: '0,5', suffixText: 'kg', border: OutlineInputBorder()),
                             validator: (value) {
                               final number = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
                               if (number == null || number <= 0) return 'Berat tidak valid';
@@ -240,11 +271,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.next,
                       inputFormatters: const [RupiahInputFormatter()],
-                      decoration: const InputDecoration(
-                        labelText: 'Jumlah *',
-                        prefixText: 'Rp ',
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: const InputDecoration(labelText: 'Jumlah *', prefixText: 'Rp ', border: OutlineInputBorder()),
                       validator: (value) {
                         final number = int.tryParse((value ?? '').replaceAll('.', '').trim());
                         if (number == null || number <= 0) return 'Jumlah tidak valid';
@@ -252,23 +279,14 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                       },
                     ),
                     const SizedBox(height: 10),
-                    TextFormField(
-                      controller: catatan,
-                      decoration: const InputDecoration(labelText: 'Catatan', border: OutlineInputBorder()),
-                      maxLines: 2,
-                    ),
+                    TextFormField(controller: catatan, decoration: const InputDecoration(labelText: 'Catatan', border: OutlineInputBorder()), maxLines: 2),
                     const SizedBox(height: 4),
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: const Icon(Icons.calendar_today),
                       title: Text(Formatter.tanggalPanjang(tanggal)),
                       onTap: () async {
-                        final selected = await showDatePicker(
-                          context: ctx,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime(2100),
-                          initialDate: tanggal,
-                        );
+                        final selected = await showDatePicker(context: ctx, firstDate: DateTime(2000), lastDate: DateTime(2100), initialDate: tanggal);
                         if (!ctx.mounted) return;
                         if (selected != null) setSheetState(() => tanggal = selected);
                       },
@@ -304,9 +322,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                               }
                             },
                       icon: const Icon(Icons.save_outlined),
-                      label: saving
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Simpan Transaksi'),
+                      label: saving ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Simpan Transaksi'),
                     ),
                   ],
                 ),
@@ -371,23 +387,11 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
         title: Text(widget.pelanggan.nama, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           if (hasOutstanding)
-            IconButton(
-              onPressed: loading ? null : _bayarSemua,
-              tooltip: 'Bayar piutang',
-              icon: const Icon(Icons.payments_outlined),
-            ),
-          IconButton(
-            onPressed: loading ? null : _laporanPelanggan,
-            tooltip: 'Laporan pelanggan',
-            icon: const Icon(Icons.description_outlined),
-          ),
+            IconButton(onPressed: loading ? null : _bayarSemua, tooltip: 'Bayar piutang', icon: const Icon(Icons.payments_outlined)),
+          IconButton(onPressed: loading ? null : _laporanPelanggan, tooltip: 'Laporan pelanggan', icon: const Icon(Icons.description_outlined)),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _transaksi,
-        icon: const Icon(Icons.add),
-        label: const Text('Transaksi'),
-      ),
+      floatingActionButton: FloatingActionButton.extended(onPressed: _transaksi, icon: const Icon(Icons.add), label: const Text('Transaksi')),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : rows.isEmpty
@@ -401,13 +405,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                       const SizedBox(height: 12),
                       Center(child: Text('Belum ada transaksi.', style: theme.textTheme.titleMedium)),
                       const SizedBox(height: 4),
-                      Center(
-                        child: Text(
-                          'Tekan tombol Transaksi untuk menambahkan.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ),
+                      Center(child: Text('Tekan tombol Transaksi untuk menambahkan.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium)),
                     ],
                   ),
                 )
@@ -444,8 +442,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                               if (value == 'hapus') _hapusTransaksi(transaksi);
                             },
                             itemBuilder: (_) => [
-                              if (transaksi.sisa > 0)
-                                const PopupMenuItem(value: 'bayar', child: Text('Bayar')),
+                              if (transaksi.sisa > 0) const PopupMenuItem(value: 'bayar', child: Text('Bayar')),
                               const PopupMenuItem(value: 'hapus', child: Text('Hapus')),
                             ],
                           ),
@@ -471,7 +468,6 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
 class _CityPicker extends StatefulWidget {
   final String initialValue;
   const _CityPicker({required this.initialValue});
-
   @override
   State<_CityPicker> createState() => _CityPickerState();
 }
@@ -499,7 +495,6 @@ class _CityPickerState extends State<_CityPicker> {
   Widget build(BuildContext context) {
     final normalized = query.trim().toLowerCase();
     final cities = indonesiaCities.where((city) => city.toLowerCase().contains(normalized)).toList(growable: false);
-
     return SafeArea(
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * .8,
@@ -510,20 +505,13 @@ class _CityPickerState extends State<_CityPicker> {
               TextField(
                 controller: searchController,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  labelText: 'Cari kota/kabupaten',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Cari kota/kabupaten', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               Expanded(
                 child: ListView.builder(
                   itemCount: cities.length,
-                  itemBuilder: (_, index) => ListTile(
-                    title: Text(cities[index]),
-                    onTap: () => Navigator.pop(context, cities[index]),
-                  ),
+                  itemBuilder: (_, index) => ListTile(title: Text(cities[index]), onTap: () => Navigator.pop(context, cities[index])),
                 ),
               ),
             ],
@@ -536,7 +524,6 @@ class _CityPickerState extends State<_CityPicker> {
 
 class _BarcodeScannerPage extends StatefulWidget {
   const _BarcodeScannerPage();
-
   @override
   State<_BarcodeScannerPage> createState() => _BarcodeScannerPageState();
 }
