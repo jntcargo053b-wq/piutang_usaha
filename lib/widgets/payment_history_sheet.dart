@@ -30,7 +30,7 @@ class PaymentHistorySheet extends StatelessWidget {
               return const SizedBox(height: 220, child: Center(child: CircularProgressIndicator()));
             }
             if (snapshot.hasError) {
-              return SizedBox(
+              return const SizedBox(
                 height: 220,
                 child: Center(child: Text('Gagal memuat rincian pembayaran.')),
               );
