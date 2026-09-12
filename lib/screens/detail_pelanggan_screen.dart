@@ -126,38 +126,22 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
       if (!mounted || format == null) return;
 
       if (format == 'pdf') {
-        await CustomerReportService.sharePdf(
-          namaPelanggan: widget.pelanggan.nama,
-          transaksi: rows,
-          pembayaran: pembayaran,
-          type: type,
-        );
+        await CustomerReportService.sharePdf(namaPelanggan: widget.pelanggan.nama, transaksi: rows, pembayaran: pembayaran, type: type);
       } else {
-        await CustomerReportService.shareExcel(
-          namaPelanggan: widget.pelanggan.nama,
-          transaksi: rows,
-          pembayaran: pembayaran,
-          type: type,
-        );
+        await CustomerReportService.shareExcel(namaPelanggan: widget.pelanggan.nama, transaksi: rows, pembayaran: pembayaran, type: type);
       }
     } catch (e) {
       if (mounted) _showError('Gagal membuat laporan: $e');
     }
   }
 
-  Future<String?> _pilihKota(String current) {
-    return showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _CityPicker(initialValue: current),
-    );
-  }
+  Future<String?> _pilihKota(String current) => showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => _CityPicker(initialValue: current),
+      );
 
-  Future<String?> _scanResi() {
-    return Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _BarcodeScannerPage()),
-    );
-  }
+  Future<String?> _scanResi() => Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const _BarcodeScannerPage()));
 
   Future<void> _transaksi({TransaksiKredit? existing}) async {
     final isEdit = existing != null;
@@ -190,43 +174,20 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                     TextFormField(
                       controller: res,
                       textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(
-                        labelText: 'Nomor Resi *',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          tooltip: 'Scan barcode',
-                          icon: const Icon(Icons.qr_code_scanner),
-                          onPressed: () async {
-                            final scanned = await _scanResi();
-                            if (!ctx.mounted) return;
-                            if (scanned != null && scanned.trim().isNotEmpty) {
-                              setSheetState(() {
-                                res.text = scanned.trim();
-                                res.selection = TextSelection.collapsed(offset: res.text.length);
-                              });
-                            }
-                          },
-                        ),
-                      ),
+                      decoration: InputDecoration(labelText: 'Nomor Resi *', border: const OutlineInputBorder(), suffixIcon: IconButton(tooltip: 'Scan barcode', icon: const Icon(Icons.qr_code_scanner), onPressed: () async {
+                        final scanned = await _scanResi();
+                        if (!ctx.mounted) return;
+                        if (scanned != null && scanned.trim().isNotEmpty) setSheetState(() { res.text = scanned.trim(); res.selection = TextSelection.collapsed(offset: res.text.length); });
+                      })),
                       validator: (value) => value == null || value.trim().isEmpty ? 'Nomor resi wajib diisi' : null,
                     ),
                     const SizedBox(height: 10),
-                    TextFormField(
-                      controller: penerima,
-                      textInputAction: TextInputAction.next,
-                      decoration: const InputDecoration(labelText: 'Nama Penerima *', border: OutlineInputBorder()),
-                      validator: (value) => value == null || value.trim().isEmpty ? 'Nama penerima wajib diisi' : null,
-                    ),
+                    TextFormField(controller: penerima, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Nama Penerima *', border: OutlineInputBorder()), validator: (value) => value == null || value.trim().isEmpty ? 'Nama penerima wajib diisi' : null),
                     const SizedBox(height: 10),
                     TextFormField(
                       controller: kota,
                       readOnly: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Kota Tujuan *',
-                        hintText: 'Pilih kabupaten/kota',
-                        border: OutlineInputBorder(),
-                        suffixIcon: Icon(Icons.arrow_drop_down),
-                      ),
+                      decoration: const InputDecoration(labelText: 'Kota Tujuan *', hintText: 'Pilih kabupaten/kota', border: OutlineInputBorder(), suffixIcon: Icon(Icons.arrow_drop_down)),
                       onTap: () async {
                         final selected = await _pilihKota(kota.text);
                         if (!ctx.mounted) return;
@@ -235,37 +196,11 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                       validator: (value) => value == null || value.trim().isEmpty ? 'Kota tujuan wajib dipilih' : null,
                     ),
                     const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: quantity,
-                            keyboardType: TextInputType.number,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(labelText: 'Quantity *', hintText: '1', border: OutlineInputBorder()),
-                            validator: (value) {
-                              final number = int.tryParse((value ?? '').trim());
-                              if (number == null || number <= 0) return 'Quantity tidak valid';
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextFormField(
-                            controller: berat,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(labelText: 'Berat (kg) *', hintText: '0,5', suffixText: 'kg', border: OutlineInputBorder()),
-                            validator: (value) {
-                              final number = double.tryParse((value ?? '').trim().replaceAll(',', '.'));
-                              if (number == null || number <= 0) return 'Berat tidak valid';
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
+                    Row(children: [
+                      Expanded(child: TextFormField(controller: quantity, keyboardType: TextInputType.number, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Quantity *', hintText: '1', border: OutlineInputBorder()), validator: (value) { final number = int.tryParse((value ?? '').trim()); return number == null || number <= 0 ? 'Quantity tidak valid' : null; })),
+                      const SizedBox(width: 10),
+                      Expanded(child: TextFormField(controller: berat, keyboardType: const TextInputType.numberWithOptions(decimal: true), textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Berat (kg) *', hintText: '0,5', suffixText: 'kg', border: OutlineInputBorder()), validator: (value) { final number = double.tryParse((value ?? '').trim().replaceAll(',', '.')); return number == null || number <= 0 ? 'Berat tidak valid' : null; })),
+                    ]),
                     const SizedBox(height: 10),
                     TextFormField(
                       controller: jumlah,
@@ -276,7 +211,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                       validator: (value) {
                         final number = int.tryParse((value ?? '').replaceAll('.', '').trim());
                         if (number == null || number <= 0) return 'Jumlah tidak valid';
-                        if (isEdit && number < existing.totalDibayar) return 'Jumlah tidak boleh lebih kecil dari total pembayaran (${existing.totalDibayar}).';
+                        if (isEdit && number < existing!.totalDibayar) return 'Jumlah tidak boleh lebih kecil dari total pembayaran (${existing.totalDibayar}).';
                         return null;
                       },
                     ),
@@ -295,44 +230,29 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                     ),
                     const SizedBox(height: 8),
                     FilledButton.icon(
-                      onPressed: saving
-                          ? null
-                          : () async {
-                              if (!formKey.currentState!.validate()) return;
-                              setSheetState(() => saving = true);
-                              try {
-                                final transaksi = TransaksiKredit(
-                                  id: existing?.id,
-                                  pelangganId: widget.pelanggan.id!,
-                                  tanggal: tanggal,
-                                  nomorResi: res.text.trim(),
-                                  namaPenerima: penerima.text.trim(),
-                                  kotaTujuan: kota.text.trim(),
-                                  jumlah: int.parse(jumlah.text.replaceAll('.', '').trim()),
-                                  berat: double.parse(berat.text.trim().replaceAll(',', '.')),
-                                  quantity: int.parse(quantity.text.trim()),
-                                  catatan: catatan.text.trim().isEmpty ? null : catatan.text.trim(),
-                                  totalDibayar: existing?.totalDibayar ?? 0,
-                                );
-                                if (isEdit) {
-                                  await DbHelper.instance.updateTransaksi(transaksi);
-                                  await ctx.read<PiutangProvider>().muatPelanggan();
-                                } else {
-                                  await ctx.read<PiutangProvider>().tambahTransaksi(transaksi);
-                                }
-                                if (!ctx.mounted) return;
-                                Navigator.pop(ctx);
-                                if (mounted) await _load();
-                              } catch (e) {
-                                if (!ctx.mounted) return;
-                                setSheetState(() => saving = false);
-                                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));
-                              }
-                            },
-                      icon: Icon(isEdit ? Icons.save_outlined : Icons.save_outlined),
-                      label: saving
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Text(isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi'),
+                      onPressed: saving ? null : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setSheetState(() => saving = true);
+                        try {
+                          final transaksi = TransaksiKredit(id: existing?.id, pelangganId: widget.pelanggan.id!, tanggal: tanggal, nomorResi: res.text.trim(), namaPenerima: penerima.text.trim(), kotaTujuan: kota.text.trim(), jumlah: int.parse(jumlah.text.replaceAll('.', '').trim()), berat: double.parse(berat.text.trim().replaceAll(',', '.')), quantity: int.parse(quantity.text.trim()), catatan: catatan.text.trim().isEmpty ? null : catatan.text.trim(), totalDibayar: existing?.totalDibayar ?? 0);
+                          if (isEdit) {
+                            await DbHelper.instance.updateTransaksi(transaksi);
+                            if (!ctx.mounted) return;
+                            await ctx.read<PiutangProvider>().muatPelanggan();
+                          } else {
+                            await ctx.read<PiutangProvider>().tambahTransaksi(transaksi);
+                          }
+                          if (!ctx.mounted) return;
+                          Navigator.pop(ctx);
+                          if (mounted) await _load();
+                        } catch (e) {
+                          if (!ctx.mounted) return;
+                          setSheetState(() => saving = false);
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));
+                        }
+                      },
+                      icon: const Icon(Icons.save_outlined),
+                      label: saving ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi'),
                     ),
                   ],
                 ),
@@ -353,30 +273,16 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Future<void> _bayar(TransaksiKredit transaksi) async {
-    await PaymentDialog.show(context, transaksi, onSaved: () async {
-      if (mounted) await _load();
-    });
+    await PaymentDialog.show(context, transaksi, onSaved: () async { if (mounted) await _load(); });
   }
 
   Future<void> _bayarSemua() async {
     if (!mounted) return;
-    await CustomerPaymentSheet.show(context, rows, onSaved: () async {
-      if (mounted) await _load();
-    });
+    await CustomerPaymentSheet.show(context, rows, onSaved: () async { if (mounted) await _load(); });
   }
 
   Future<void> _hapusTransaksi(TransaksiKredit transaksi) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Hapus transaksi?'),
-        content: const Text('Riwayat pembayaran juga akan terhapus.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Hapus')),
-        ],
-      ),
-    );
+    final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Hapus transaksi?'), content: const Text('Riwayat pembayaran juga akan terhapus.'), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Hapus'))]));
     if (confirmed != true || !mounted) return;
     try {
       await context.read<PiutangProvider>().hapusTransaksi(transaksi.id!);
@@ -391,90 +297,40 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final hasOutstanding = rows.any((t) => t.sisa > 0);
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.pelanggan.nama, maxLines: 1, overflow: TextOverflow.ellipsis),
-        actions: [
-          if (hasOutstanding)
-            IconButton(onPressed: loading ? null : _bayarSemua, tooltip: 'Bayar piutang', icon: const Icon(Icons.payments_outlined)),
-          IconButton(onPressed: loading ? null : _laporanPelanggan, tooltip: 'Laporan pelanggan', icon: const Icon(Icons.description_outlined)),
-        ],
-      ),
+      appBar: AppBar(title: Text(widget.pelanggan.nama, maxLines: 1, overflow: TextOverflow.ellipsis), actions: [
+        if (hasOutstanding) IconButton(onPressed: loading ? null : _bayarSemua, tooltip: 'Bayar piutang', icon: const Icon(Icons.payments_outlined)),
+        IconButton(onPressed: loading ? null : _laporanPelanggan, tooltip: 'Laporan pelanggan', icon: const Icon(Icons.description_outlined)),
+      ]),
       floatingActionButton: FloatingActionButton.extended(onPressed: _transaksi, icon: const Icon(Icons.add), label: const Text('Transaksi')),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : rows.isEmpty
-              ? RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      const SizedBox(height: 150),
-                      Icon(Icons.receipt_long_outlined, size: 56, color: scheme.primary),
-                      const SizedBox(height: 12),
-                      Center(child: Text('Belum ada transaksi.', style: theme.textTheme.titleMedium)),
-                      const SizedBox(height: 4),
-                      Center(child: Text('Tekan tombol Transaksi untuk menambahkan.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium)),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: rows.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final transaksi = rows[index];
-                      return Card(
-                        clipBehavior: Clip.antiAlias,
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          title: Text(transaksi.nomorResi, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}', maxLines: 2, overflow: TextOverflow.ellipsis),
-                                const SizedBox(height: 4),
-                                Text('Qty ${transaksi.quantity} • ${_formatBerat(transaksi.berat)} kg'),
-                                const SizedBox(height: 4),
-                                Text(Formatter.tanggalPanjang(transaksi.tanggal)),
-                              ],
-                            ),
-                          ),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'bayar') _bayar(transaksi);
-                              if (value == 'edit') _transaksi(existing: transaksi);
-                              if (value == 'hapus') _hapusTransaksi(transaksi);
-                            },
-                            itemBuilder: (_) => [
-                              if (transaksi.sisa > 0) const PopupMenuItem(value: 'bayar', child: Text('Bayar')),
-                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              const PopupMenuItem(value: 'hapus', child: Text('Hapus')),
-                            ],
-                          ),
-                          leading: CircleAvatar(
-                            backgroundColor: scheme.primaryContainer,
-                            foregroundColor: scheme.onPrimaryContainer,
-                            child: Icon(transaksi.sisa <= 0 ? Icons.check : Icons.receipt_long_outlined),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+      body: loading ? const Center(child: CircularProgressIndicator()) : rows.isEmpty
+          ? RefreshIndicator(onRefresh: _load, child: ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 150), Icon(Icons.receipt_long_outlined, size: 56), const SizedBox(height: 12), Center(child: Text('Belum ada transaksi.')), const SizedBox(height: 4), Center(child: Text('Tekan tombol Transaksi untuk menambahkan.', textAlign: TextAlign.center))]))
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: rows.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final transaksi = rows[index];
+                  return Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      title: Text(transaksi.nomorResi, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: Padding(padding: const EdgeInsets.only(top: 6), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}', maxLines: 2, overflow: TextOverflow.ellipsis), const SizedBox(height: 4), Text('Qty ${transaksi.quantity} • ${_formatBerat(transaksi.berat)} kg'), const SizedBox(height: 4), Text(Formatter.tanggalPanjang(transaksi.tanggal))])),
+                      trailing: PopupMenuButton<String>(onSelected: (value) { if (value == 'bayar') _bayar(transaksi); if (value == 'edit') _transaksi(existing: transaksi); if (value == 'hapus') _hapusTransaksi(transaksi); }, itemBuilder: (_) => [if (transaksi.sisa > 0) const PopupMenuItem(value: 'bayar', child: Text('Bayar')), const PopupMenuItem(value: 'edit', child: Text('Edit')), const PopupMenuItem(value: 'hapus', child: Text('Hapus'))]),
+                      leading: CircleAvatar(backgroundColor: scheme.primaryContainer, foregroundColor: scheme.onPrimaryContainer, child: Icon(transaksi.sisa <= 0 ? Icons.check : Icons.receipt_long_outlined)),
+                    ),
+                  );
+                },
+              ),
+            ),
     );
   }
 
-  String _formatBerat(double value) {
-    if (value == value.roundToDouble()) return value.toInt().toString();
-    return value.toString().replaceAll('.', ',');
-  }
+  String _formatBerat(double value) => value == value.roundToDouble() ? value.toInt().toString() : value.toString().replaceAll('.', ',');
 }
 
 class _CityPicker extends StatefulWidget {
@@ -487,50 +343,19 @@ class _CityPicker extends StatefulWidget {
 class _CityPickerState extends State<_CityPicker> {
   late final TextEditingController searchController;
   String query = '';
-
   @override
   void initState() {
     super.initState();
     searchController = TextEditingController(text: widget.initialValue);
-    searchController.addListener(() {
-      if (mounted) setState(() => query = searchController.text);
-    });
+    searchController.addListener(() { if (mounted) setState(() => query = searchController.text); });
   }
-
   @override
-  void dispose() {
-    searchController.dispose();
-    super.dispose();
-  }
-
+  void dispose() { searchController.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) {
     final normalized = query.trim().toLowerCase();
     final cities = indonesiaCities.where((city) => city.toLowerCase().contains(normalized)).toList(growable: false);
-    return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * .8,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              TextField(
-                controller: searchController,
-                autofocus: true,
-                decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Cari kota/kabupaten', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: cities.length,
-                  itemBuilder: (_, index) => ListTile(title: Text(cities[index]), onTap: () => Navigator.pop(context, cities[index])),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return SafeArea(child: SizedBox(height: MediaQuery.sizeOf(context).height * .8, child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [TextField(controller: searchController, autofocus: true, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Cari kota/kabupaten', border: OutlineInputBorder())), const SizedBox(height: 12), Expanded(child: ListView.builder(itemCount: cities.length, itemBuilder: (_, index) => ListTile(title: Text(cities[index]), onTap: () => Navigator.pop(context, cities[index]))))])));
   }
 }
 
@@ -543,31 +368,8 @@ class _BarcodeScannerPage extends StatefulWidget {
 class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
   final MobileScannerController controller = MobileScannerController();
   bool handled = false;
-
   @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
+  void dispose() { controller.dispose(); super.dispose(); }
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scan Nomor Resi')),
-      body: MobileScanner(
-        controller: controller,
-        onDetect: (capture) {
-          if (handled) return;
-          for (final barcode in capture.barcodes) {
-            final value = barcode.rawValue?.trim();
-            if (value != null && value.isNotEmpty) {
-              handled = true;
-              Navigator.of(context).pop(value);
-              break;
-            }
-          }
-        },
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Scan Nomor Resi')), body: MobileScanner(controller: controller, onDetect: (capture) { if (handled) return; for (final barcode in capture.barcodes) { final value = barcode.rawValue?.trim(); if (value != null && value.isNotEmpty) { handled = true; Navigator.of(context).pop(value); break; } } }));
 }
