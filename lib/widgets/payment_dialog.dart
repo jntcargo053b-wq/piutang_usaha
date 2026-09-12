@@ -5,6 +5,7 @@ import '../models/transaksi_kredit.dart';
 import '../providers/piutang_provider.dart';
 import '../utils/formatter.dart';
 import '../utils/rupiah_input_formatter.dart';
+import 'payment_history_sheet.dart';
 
 class PaymentDialog extends StatefulWidget {
   final TransaksiKredit transaksi;
@@ -61,12 +62,23 @@ class _PaymentDialogState extends State<PaymentDialog> {
     }
   }
 
+  Future<void> _showHistory() async {
+    if (_saving) return;
+    await PaymentHistorySheet.show(context, widget.transaksi);
+  }
+
   @override Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return AlertDialog(
       title: Text('Pembayaran ${widget.transaksi.nomorResi}', maxLines: 1, overflow: TextOverflow.ellipsis),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Card(color: scheme.surfaceContainerHighest, child: Padding(padding: const EdgeInsets.all(12), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Sisa tagihan'), Text(Formatter.rupiah(widget.transaksi.sisa), style: const TextStyle(fontWeight: FontWeight.bold))]))),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: _saving ? null : _showHistory,
+          icon: const Icon(Icons.history),
+          label: const Text('Lihat rincian pembayaran'),
+        ),
         const SizedBox(height: 12),
         TextField(
           controller: _jumlah,
