@@ -159,16 +159,17 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     );
   }
 
-  Future<void> _transaksi() async {
+  Future<void> _transaksi({TransaksiKredit? existing}) async {
+    final isEdit = existing != null;
     final formKey = GlobalKey<FormState>();
-    final res = TextEditingController();
-    final penerima = TextEditingController();
-    final kota = TextEditingController();
-    final jumlah = TextEditingController();
-    final berat = TextEditingController();
-    final quantity = TextEditingController(text: '1');
-    final catatan = TextEditingController();
-    DateTime tanggal = DateTime.now();
+    final res = TextEditingController(text: existing?.nomorResi ?? '');
+    final penerima = TextEditingController(text: existing?.namaPenerima ?? '');
+    final kota = TextEditingController(text: existing?.kotaTujuan ?? '');
+    final jumlah = TextEditingController(text: existing == null ? '' : existing.jumlah.toString());
+    final berat = TextEditingController(text: existing == null ? '' : _formatBerat(existing.berat));
+    final quantity = TextEditingController(text: existing?.quantity.toString() ?? '1');
+    final catatan = TextEditingController(text: existing?.catatan ?? '');
+    DateTime tanggal = existing?.tanggal ?? DateTime.now();
     bool saving = false;
 
     try {
@@ -184,7 +185,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text('Tambah Transaksi Kredit', style: Theme.of(ctx).textTheme.titleLarge),
+                    Text(isEdit ? 'Edit Transaksi Kredit' : 'Tambah Transaksi Kredit', style: Theme.of(ctx).textTheme.titleLarge),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: res,
@@ -275,6 +276,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                       validator: (value) {
                         final number = int.tryParse((value ?? '').replaceAll('.', '').trim());
                         if (number == null || number <= 0) return 'Jumlah tidak valid';
+                        if (isEdit && number < existing.totalDibayar) return 'Jumlah tidak boleh lebih kecil dari total pembayaran (${existing.totalDibayar}).';
                         return null;
                       },
                     ),
@@ -299,19 +301,25 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                               if (!formKey.currentState!.validate()) return;
                               setSheetState(() => saving = true);
                               try {
-                                await ctx.read<PiutangProvider>().tambahTransaksi(
-                                  TransaksiKredit(
-                                    pelangganId: widget.pelanggan.id!,
-                                    tanggal: tanggal,
-                                    nomorResi: res.text.trim(),
-                                    namaPenerima: penerima.text.trim(),
-                                    kotaTujuan: kota.text.trim(),
-                                    jumlah: int.parse(jumlah.text.replaceAll('.', '').trim()),
-                                    berat: double.parse(berat.text.trim().replaceAll(',', '.')),
-                                    quantity: int.parse(quantity.text.trim()),
-                                    catatan: catatan.text.trim().isEmpty ? null : catatan.text.trim(),
-                                  ),
+                                final transaksi = TransaksiKredit(
+                                  id: existing?.id,
+                                  pelangganId: widget.pelanggan.id!,
+                                  tanggal: tanggal,
+                                  nomorResi: res.text.trim(),
+                                  namaPenerima: penerima.text.trim(),
+                                  kotaTujuan: kota.text.trim(),
+                                  jumlah: int.parse(jumlah.text.replaceAll('.', '').trim()),
+                                  berat: double.parse(berat.text.trim().replaceAll(',', '.')),
+                                  quantity: int.parse(quantity.text.trim()),
+                                  catatan: catatan.text.trim().isEmpty ? null : catatan.text.trim(),
+                                  totalDibayar: existing?.totalDibayar ?? 0,
                                 );
+                                if (isEdit) {
+                                  await DbHelper.instance.updateTransaksi(transaksi);
+                                  await ctx.read<PiutangProvider>().muatPelanggan();
+                                } else {
+                                  await ctx.read<PiutangProvider>().tambahTransaksi(transaksi);
+                                }
                                 if (!ctx.mounted) return;
                                 Navigator.pop(ctx);
                                 if (mounted) await _load();
@@ -321,8 +329,10 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                                 ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('$e')));
                               }
                             },
-                      icon: const Icon(Icons.save_outlined),
-                      label: saving ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Simpan Transaksi'),
+                      icon: Icon(isEdit ? Icons.save_outlined : Icons.save_outlined),
+                      label: saving
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : Text(isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi'),
                     ),
                   ],
                 ),
@@ -439,10 +449,12 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                           trailing: PopupMenuButton<String>(
                             onSelected: (value) {
                               if (value == 'bayar') _bayar(transaksi);
+                              if (value == 'edit') _transaksi(existing: transaksi);
                               if (value == 'hapus') _hapusTransaksi(transaksi);
                             },
                             itemBuilder: (_) => [
                               if (transaksi.sisa > 0) const PopupMenuItem(value: 'bayar', child: Text('Bayar')),
+                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
                               const PopupMenuItem(value: 'hapus', child: Text('Hapus')),
                             ],
                           ),
