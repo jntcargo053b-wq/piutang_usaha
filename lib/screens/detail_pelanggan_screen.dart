@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
-
 import '../data/indonesia_cities.dart';
 import '../models/pelanggan.dart';
 import '../models/pembayaran.dart';
@@ -24,7 +23,6 @@ class DetailPelangganScreen extends StatefulWidget {
 class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   List<TransaksiKredit> rows = <TransaksiKredit>[];
   bool loading = true;
-
   @override
   void initState() { super.initState(); _load(); }
 
@@ -44,7 +42,9 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
 
   Future<Map<int, List<Pembayaran>>> _loadPembayaran() async {
     final result = <int, List<Pembayaran>>{};
-    for (final transaksi in rows) result[transaksi.id!] = await DbHelper.instance.getPembayaranByTransaksi(transaksi.id!);
+    for (final transaksi in rows) {
+      result[transaksi.id!] = await DbHelper.instance.getPembayaranByTransaksi(transaksi.id!);
+    }
     return result;
   }
 
@@ -66,9 +66,14 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
         const SizedBox(height: 8),
       ])));
       if (!mounted || format == null) return;
-      if (format == 'pdf') await CustomerReportService.sharePdf(namaPelanggan: widget.pelanggan.nama, transaksi: rows, pembayaran: pembayaran, type: type);
-      else await CustomerReportService.shareExcel(namaPelanggan: widget.pelanggan.nama, transaksi: rows, pembayaran: pembayaran, type: type);
-    } catch (e) { if (mounted) _showError('Gagal membuat laporan: $e'); }
+      if (format == 'pdf') {
+        await CustomerReportService.sharePdf(namaPelanggan: widget.pelanggan.nama, transaksi: rows, pembayaran: pembayaran, type: type);
+      } else {
+        await CustomerReportService.shareExcel(namaPelanggan: widget.pelanggan.nama, transaksi: rows, pembayaran: pembayaran, type: type);
+      }
+    } catch (e) {
+      if (mounted) _showError('Gagal membuat laporan: $e');
+    }
   }
 
   Future<String?> _pilihKota(String current) => showModalBottomSheet<String>(context: context, isScrollControlled: true, builder: (_) => _CityPicker(initialValue: current));
@@ -86,7 +91,6 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     final catatan = TextEditingController(text: existing?.catatan ?? '');
     DateTime tanggal = existing?.tanggal ?? DateTime.now();
     bool saving = false;
-
     try {
       await showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (ctx) => StatefulBuilder(builder: (ctx, setSheetState) => Padding(
         padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
@@ -96,7 +100,9 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
           TextFormField(controller: res, textInputAction: TextInputAction.next, decoration: InputDecoration(labelText: 'Nomor Resi *', border: const OutlineInputBorder(), suffixIcon: IconButton(tooltip: 'Scan barcode', icon: const Icon(Icons.qr_code_scanner), onPressed: () async {
             final scanned = await _scanResi();
             if (!ctx.mounted) return;
-            if (scanned != null && scanned.trim().isNotEmpty) setSheetState(() { res.text = scanned.trim(); res.selection = TextSelection.collapsed(offset: res.text.length); });
+            if (scanned != null && scanned.trim().isNotEmpty) {
+              setSheetState(() { res.text = scanned.trim(); res.selection = TextSelection.collapsed(offset: res.text.length); });
+            }
           })), validator: (value) => value == null || value.trim().isEmpty ? 'Nomor resi wajib diisi' : null),
           const SizedBox(height: 10),
           TextFormField(controller: penerima, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Nama Penerima *', border: OutlineInputBorder()), validator: (value) => value == null || value.trim().isEmpty ? 'Nama penerima wajib diisi' : null),
@@ -156,7 +162,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     }
   }
 
-  Future<void> _bayar(TransaksiKredit transaksi) async => PaymentDialog.show(context, transaksi, onSaved: () async { if (mounted) await _load(); });
+  Future<void> _bayar(TransaksiKredit transaksi) async { await PaymentDialog.show(context, transaksi, onSaved: () async { if (mounted) await _load(); }); }
   Future<void> _bayarSemua() async { if (!mounted) return; await CustomerPaymentSheet.show(context, rows, onSaved: () async { if (mounted) await _load(); }); }
 
   Future<void> _hapusTransaksi(TransaksiKredit transaksi) async {
@@ -220,21 +226,11 @@ class _CityPickerState extends State<_CityPicker> {
   Widget build(BuildContext context) {
     final normalized = query.trim().toLowerCase();
     final cities = indonesiaCities.where((city) => city.toLowerCase().contains(normalized)).toList(growable: false);
-    return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.sizeOf(context).height * .8,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              TextField(controller: searchController, autofocus: true, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Cari kota/kabupaten', border: OutlineInputBorder())),
-              const SizedBox(height: 12),
-              Expanded(child: ListView.builder(itemCount: cities.length, itemBuilder: (_, index) => ListTile(title: Text(cities[index]), onTap: () => Navigator.pop(context, cities[index])))),
-            ],
-          ),
-        ),
-      ),
-    );
+    return SafeArea(child: SizedBox(height: MediaQuery.sizeOf(context).height * .8, child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+      TextField(controller: searchController, autofocus: true, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Cari kota/kabupaten', border: OutlineInputBorder())),
+      const SizedBox(height: 12),
+      Expanded(child: ListView.builder(itemCount: cities.length, itemBuilder: (_, index) => ListTile(title: Text(cities[index]), onTap: () => Navigator.pop(context, cities[index])))),
+    ]))));
   }
 }
 
