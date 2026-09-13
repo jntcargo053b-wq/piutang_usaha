@@ -83,6 +83,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
         TextField(
           controller: _jumlah,
           keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.next,
           inputFormatters: const [RupiahInputFormatter()],
           decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp ', border: OutlineInputBorder()),
         ),
@@ -108,7 +109,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
             RadioListTile<String>(dense: true, contentPadding: EdgeInsets.zero, value: 'transfer', title: Text('Transfer'), secondary: Icon(Icons.account_balance_outlined)),
           ]),
         ),
-        TextField(controller: _keterangan, maxLines: 2, decoration: const InputDecoration(labelText: 'Keterangan (opsional)', border: OutlineInputBorder())),
+        TextField(controller: _keterangan, textInputAction: TextInputAction.done, maxLines: 2, decoration: const InputDecoration(labelText: 'Keterangan (opsional)', border: OutlineInputBorder())),
       ])),
       actions: [TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Batal')), FilledButton.icon(onPressed: _saving ? null : _save, icon: _saving ? const SizedBox(width: 18,height:18,child:CircularProgressIndicator(strokeWidth:2)) : const Icon(Icons.check), label: Text(_saving ? 'Menyimpan...' : 'Simpan'))],
     );
