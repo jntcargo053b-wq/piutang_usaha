@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../utils/formatter.dart';
 import '../services/db_helper.dart';
+import '../models/transaksi_kredit.dart';
 
 class CustomerPaymentHistorySheet extends StatelessWidget {
   final int pelangganId;
@@ -26,6 +27,20 @@ class CustomerPaymentHistorySheet extends StatelessWidget {
         pelangganId: pelangganId,
         namaPelanggan: namaPelanggan,
       ),
+    );
+  }
+
+  static Future<void> showForTransactions(
+    BuildContext context,
+    List<TransaksiKredit> transactions,
+  ) {
+    if (transactions.isEmpty || transactions.first.pelangganId <= 0) {
+      return Future<void>.value();
+    }
+    return show(
+      context,
+      pelangganId: transactions.first.pelangganId,
+      namaPelanggan: 'Riwayat pembayaran pelanggan',
     );
   }
 
@@ -119,6 +134,7 @@ class CustomerPaymentHistorySheet extends StatelessWidget {
                               final method = _methodLabel(payment['metode']);
                               final note = '${payment['keterangan'] ?? ''}'.trim();
                               final resi = '${payment['nomor_resi'] ?? ''}'.trim();
+                              final date = DateTime.tryParse('${payment['tanggal']}');
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 leading: CircleAvatar(
@@ -133,7 +149,7 @@ class CustomerPaymentHistorySheet extends StatelessWidget {
                                   ),
                                 ),
                                 subtitle: Text(
-                                  '${Formatter.tanggalPanjang(DateTime.tryParse('${payment['tanggal']}') ?? DateTime.now())} • $method'
+                                  '${Formatter.tanggalPanjang(date ?? DateTime.now())} • $method'
                                   '${resi.isEmpty ? '' : '\nResi: $resi'}'
                                   '${note.isEmpty ? '' : '\n$note'}',
                                 ),
