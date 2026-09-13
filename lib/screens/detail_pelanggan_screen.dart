@@ -170,7 +170,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Future<void> _bayar(TransaksiKredit transaksi) async { await PaymentDialog.show(context, transaksi, onSaved: () async { if (mounted) await _load(); }); }
-  Future<void> _bayarSemua() async { if (!mounted) return; await CustomerPaymentSheet.show(context, rows, onSaved: () async { if (mounted) await _load(); }); }
+  Future<void> _bayarSemua() async { if (!mounted) return; await CustomerPaymentSheet.show(context, rows, namaPelanggan: widget.pelanggan.nama, onSaved: () async { if (mounted) await _load(); }); }
 
   Future<void> _hapusTransaksi(TransaksiKredit transaksi) async {
     final confirmed = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: const Text('Hapus transaksi?'), content: const Text('Riwayat pembayaran juga akan terhapus.'), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Hapus'))]));
@@ -191,14 +191,14 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 title: Text(transaksi.nomorResi, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Padding(padding: const EdgeInsets.only(top: 6), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}', maxLines: 2, overflow: TextOverflow.ellipsis), const SizedBox(height: 4), Text('Qty ${transaksi.quantity} • ${_formatBerat(transaksi.berat)} kg'), const SizedBox(height: 4), Text(Formatter.tanggalPanjang(transaksi.tanggal))])),
-                trailing: PopupMenuButton<String>(onSelected: (value) { if (value == 'bayar') _bayar(transaksi); if (value == 'edit') _transaksi(existing: transaksi); if (value == 'hapus') _hapusTransaksi(transaksi); }, itemBuilder: (_) { final items = <PopupMenuEntry<String>>[]; if (transaksi.sisa > 0) items.add(const PopupMenuItem(value: 'bayar', child: Text('Bayar'))); items.add(const PopupMenuItem(value: 'edit', child: Text('Edit'))); items.add(const PopupMenuItem(value: 'hapus', child: Text('Hapus'))); return items; }),
+                trailing: PopupMenuButton<String>(onSelected: (value) { if (value == 'bayar') _bayar(transaksi); if (value == 'edit') _transaksi(existing: transaksi); if (value == 'hapus') _hapusTransaksi(transaksi); }, itemBuilder: (_) { final items = <PopupMenuEntry<String>>[]; if (transaksi.sisa > 0) items.add(const PopupMenuItem(value: 'bayar', child: Text('Bayar'))); items.add(const PopupMenuItem(value: 'edit', child: Text('Edit'))); items.add(const PopupMenuItem(value: 'hapus', child: Text('Hapus')); return items; }),
                 leading: CircleAvatar(backgroundColor: scheme.primaryContainer, foregroundColor: scheme.onPrimaryContainer, child: Icon(transaksi.sisa <= 0 ? Icons.check : Icons.receipt_long_outlined)),
               ));
             })),
     );
   }
 
-  String _formatBerat(double value) => value == value.roundToDouble() ? value.toInt().toString() : value.toString().replaceAll('.', ',');
+  String _formatBerat(double value) => value == value.roundToDouble() ? value.toInt().toString() : value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
 }
 
 class _CityPicker extends StatefulWidget {
@@ -206,19 +206,21 @@ class _CityPicker extends StatefulWidget {
   const _CityPicker({required this.initialValue});
   @override State<_CityPicker> createState() => _CityPickerState();
 }
+
 class _CityPickerState extends State<_CityPicker> {
-  late final TextEditingController searchController;
-  String query = '';
-  @override void initState() { super.initState(); searchController = TextEditingController(text: widget.initialValue); searchController.addListener(() { if (mounted) setState(() => query = searchController.text); }); }
-  @override void dispose() { searchController.dispose(); super.dispose(); }
+  final _search = TextEditingController();
+  String _query = '';
+  @override void initState() { super.initState(); _search.text = widget.initialValue; _search.selection = TextSelection.collapsed(offset: _search.text.length); }
+  @override void dispose() { _search.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) {
-    final normalized = query.trim().toLowerCase();
-    final cities = indonesiaCities.where((city) => city.toLowerCase().contains(normalized)).toList(growable: false);
-    return SafeArea(child: SizedBox(height: MediaQuery.sizeOf(context).height * .8, child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
-      TextField(controller: searchController, autofocus: true, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Cari kota/kabupaten', border: OutlineInputBorder())),
-      const SizedBox(height: 12),
-      Expanded(child: ListView.builder(itemCount: cities.length, itemBuilder: (_, index) => ListTile(title: Text(cities[index]), onTap: () => Navigator.pop(context, cities[index])))),
-    ]))));
+    final items = IndonesiaCities.regencies.where((e) => e.toLowerCase().contains(_query.toLowerCase())).take(100).toList();
+    return SafeArea(child: Padding(padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.viewInsetsOf(context).bottom + 16), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text('Pilih Kabupaten/Kota', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 8),
+      TextField(controller: _search, autofocus: true, textInputAction: TextInputAction.search, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Ketik kabupaten/kota', border: OutlineInputBorder()), onChanged: (value) => setState(() => _query = value)),
+      const SizedBox(height: 8),
+      Flexible(child: ListView.builder(shrinkWrap: true, itemCount: items.length, itemBuilder: (_, i) => ListTile(title: Text(items[i]), onTap: () => Navigator.pop(context, items[i])))),
+    ]));
   }
 }
 
@@ -226,14 +228,12 @@ class _BarcodeScannerPage extends StatefulWidget {
   const _BarcodeScannerPage();
   @override State<_BarcodeScannerPage> createState() => _BarcodeScannerPageState();
 }
+
 class _BarcodeScannerPageState extends State<_BarcodeScannerPage> {
-  final MobileScannerController controller = MobileScannerController();
-  bool handled = false;
-  @override void dispose() { controller.dispose(); super.dispose(); }
+  final MobileScannerController _controller = MobileScannerController();
+  bool _done = false;
+  @override void dispose() { _controller.dispose(); super.dispose(); }
   @override Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text('Scan Nomor Resi')), body: MobileScanner(controller: controller, onDetect: (capture) {
-      if (handled) return;
-      for (final barcode in capture.barcodes) { final value = barcode.rawValue?.trim(); if (value != null && value.isNotEmpty) { handled = true; Navigator.of(context).pop(value); break; } }
-    }));
+    return Scaffold(appBar: AppBar(title: const Text('Scan Resi')), body: MobileScanner(controller: _controller, onDetect: (capture) { if (_done) return; final value = capture.barcodes.firstOrNull?.rawValue?.trim(); if (value == null || value.isEmpty) return; _done = true; Navigator.pop(context, value); }));
   }
 }
