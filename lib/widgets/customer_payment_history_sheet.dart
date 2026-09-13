@@ -32,15 +32,18 @@ class CustomerPaymentHistorySheet extends StatelessWidget {
 
   static Future<void> showForTransactions(
     BuildContext context,
-    List<TransaksiKredit> transactions,
-  ) {
+    List<TransaksiKredit> transactions, {
+    String namaPelanggan = '',
+  }) {
     if (transactions.isEmpty || transactions.first.pelangganId <= 0) {
       return Future<void>.value();
     }
     return show(
       context,
       pelangganId: transactions.first.pelangganId,
-      namaPelanggan: 'Riwayat pembayaran pelanggan',
+      namaPelanggan: namaPelanggan.trim().isEmpty
+          ? 'Riwayat pembayaran pelanggan'
+          : namaPelanggan.trim(),
     );
   }
 
@@ -135,10 +138,11 @@ class CustomerPaymentHistorySheet extends StatelessWidget {
                               final note = '${payment['keterangan'] ?? ''}'.trim();
                               final resi = '${payment['nomor_resi'] ?? ''}'.trim();
                               final date = DateTime.tryParse('${payment['tanggal']}');
+                              final displayNumber = data.payments.length - index;
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 leading: CircleAvatar(
-                                  child: Text('${index + 1}'),
+                                  child: Text('$displayNumber'),
                                 ),
                                 title: Text(
                                   Formatter.rupiah(
