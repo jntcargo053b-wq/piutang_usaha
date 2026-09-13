@@ -8,12 +8,13 @@ import 'customer_payment_history_sheet.dart';
 class CustomerPaymentSheet extends StatefulWidget {
   final List<TransaksiKredit> transactions;
   final Future<void> Function()? onSaved;
-  const CustomerPaymentSheet({super.key, required this.transactions, this.onSaved});
+  final String namaPelanggan;
+  const CustomerPaymentSheet({super.key, required this.transactions, this.onSaved, this.namaPelanggan = ''});
 
-  static Future<void> show(BuildContext context, List<TransaksiKredit> transactions, {Future<void> Function()? onSaved}) {
+  static Future<void> show(BuildContext context, List<TransaksiKredit> transactions, {Future<void> Function()? onSaved, String namaPelanggan = ''}) {
     return showModalBottomSheet<void>(
       context: context, isScrollControlled: true,
-      builder: (_) => CustomerPaymentSheet(transactions: transactions, onSaved: onSaved),
+      builder: (_) => CustomerPaymentSheet(transactions: transactions, onSaved: onSaved, namaPelanggan: namaPelanggan),
     );
   }
 
@@ -40,7 +41,7 @@ class _CustomerPaymentSheetState extends State<CustomerPaymentSheet> {
   }
 
   Future<void> _showCustomerHistory() async {
-    await CustomerPaymentHistorySheet.showForTransactions(context, widget.transactions);
+    await CustomerPaymentHistorySheet.showForTransactions(context, widget.transactions, namaPelanggan: widget.namaPelanggan);
   }
 
   Future<void> _submit() async {
