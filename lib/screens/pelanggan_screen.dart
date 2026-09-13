@@ -107,6 +107,8 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   const SizedBox(height: 18),
                   TextFormField(
                     controller: name,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Nama Pelanggan *',
                       prefixIcon: Icon(Icons.person_outline),
@@ -119,6 +121,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   TextField(
                     controller: phone,
                     keyboardType: TextInputType.phone,
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'No. HP',
                       prefixIcon: Icon(Icons.phone_outlined),
@@ -127,6 +130,7 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: address,
+                    textInputAction: TextInputAction.done,
                     maxLines: 2,
                     decoration: const InputDecoration(
                       labelText: 'Alamat',
@@ -296,6 +300,8 @@ class _PelangganScreenState extends State<PelangganScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
                 child: TextField(
                   controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) {},
                   decoration: InputDecoration(
                     hintText: 'Cari nama, telepon, alamat, atau nomor resi...',
                     prefixIcon: const Icon(Icons.search),
@@ -314,20 +320,11 @@ class _PelangganScreenState extends State<PelangganScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   scrollDirection: Axis.horizontal,
                   children: [
-                    _filterChip(
-                      label: 'Semua ($totalCustomers)',
-                      value: 'semua',
-                    ),
+                    _filterChip(label: 'Semua ($totalCustomers)', value: 'semua'),
                     const SizedBox(width: 8),
-                    _filterChip(
-                      label: 'Piutang ($debtCustomers)',
-                      value: 'piutang',
-                    ),
+                    _filterChip(label: 'Piutang ($debtCustomers)', value: 'piutang'),
                     const SizedBox(width: 8),
-                    _filterChip(
-                      label: 'Lunas ($paidCustomers)',
-                      value: 'lunas',
-                    ),
+                    _filterChip(label: 'Lunas ($paidCustomers)', value: 'lunas'),
                   ],
                 ),
               ),
@@ -342,15 +339,9 @@ class _PelangganScreenState extends State<PelangganScreen> {
                             children: [
                               Icon(Icons.people_outline, size: 58, color: scheme.primary),
                               const SizedBox(height: 12),
-                              const Text(
-                                'Belum ada pelanggan.',
-                                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-                              ),
+                              const Text('Belum ada pelanggan.', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 6),
-                              const Text(
-                                'Tambahkan pelanggan untuk mulai mencatat transaksi.',
-                                textAlign: TextAlign.center,
-                              ),
+                              const Text('Tambahkan pelanggan untuk mulai mencatat transaksi.', textAlign: TextAlign.center),
                             ],
                           ),
                         ),
@@ -364,16 +355,9 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                 children: [
                                   Icon(Icons.filter_alt_off_outlined, size: 46, color: scheme.primary),
                                   const SizedBox(height: 10),
-                                  const Text(
-                                    'Tidak ada pelanggan yang sesuai.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontWeight: FontWeight.w700),
-                                  ),
+                                  const Text('Tidak ada pelanggan yang sesuai.', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 4),
-                                  const Text(
-                                    'Coba ubah kata pencarian, nomor resi, atau filter status.',
-                                    textAlign: TextAlign.center,
-                                  ),
+                                  const Text('Coba ubah kata pencarian, nomor resi, atau filter status.', textAlign: TextAlign.center),
                                 ],
                               ),
                             ),
@@ -409,19 +393,9 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                pelanggan.nama,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.w800),
-                                              ),
+                                              Text(pelanggan.nama, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
                                               const SizedBox(height: 3),
-                                              Text(
-                                                pelanggan.noHp ?? 'No. HP belum diisi',
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontSize: 12, color: Color(0xFF667085)),
-                                              ),
+                                              Text(pelanggan.noHp ?? 'No. HP belum diisi', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: Color(0xFF667085))),
                                             ],
                                           ),
                                         ),
@@ -429,17 +403,9 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                         Column(
                                           crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
-                                            Text(
-                                              Formatter.rupiah(sisa),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(fontWeight: FontWeight.w800, color: statusColor),
-                                            ),
+                                            Text(Formatter.rupiah(sisa), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800, color: statusColor)),
                                             const SizedBox(height: 2),
-                                            Text(
-                                              hasDebt ? 'Piutang' : 'Lunas',
-                                              style: TextStyle(fontSize: 11, color: statusColor),
-                                            ),
+                                            Text(hasDebt ? 'Piutang' : 'Lunas', style: TextStyle(fontSize: 11, color: statusColor)),
                                           ],
                                         ),
                                         PopupMenuButton<String>(
