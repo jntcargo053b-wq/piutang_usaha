@@ -3,6 +3,7 @@ import '../models/transaksi_kredit.dart';
 import '../services/payment_service.dart';
 import '../utils/formatter.dart';
 import '../utils/rupiah_input_formatter.dart';
+import 'customer_payment_history_sheet.dart';
 
 class CustomerPaymentSheet extends StatefulWidget {
   final List<TransaksiKredit> transactions;
@@ -38,6 +39,10 @@ class _CustomerPaymentSheetState extends State<CustomerPaymentSheet> {
     if (selected != null && mounted) setState(() => _date = selected);
   }
 
+  Future<void> _showCustomerHistory() async {
+    await CustomerPaymentHistorySheet.showForTransactions(context, widget.transactions);
+  }
+
   Future<void> _submit() async {
     final amount = int.tryParse(_amount.text.replaceAll('.', '').replaceAll(',', '').trim());
     if (amount == null || amount <= 0) { _error('Masukkan jumlah pembayaran yang valid.'); return; }
@@ -66,7 +71,13 @@ class _CustomerPaymentSheetState extends State<CustomerPaymentSheet> {
         padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.viewInsetsOf(context).bottom + 16),
         child: SingleChildScrollView(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [Icon(Icons.payments_outlined, color: scheme.primary), const SizedBox(width: 10), Expanded(child: Text('Bayar Piutang Pelanggan', style: theme.textTheme.titleLarge))]),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: widget.transactions.isEmpty ? null : _showCustomerHistory,
+            icon: const Icon(Icons.history_outlined),
+            label: const Text('Lihat Riwayat Pembayaran Pelanggan'),
+          ),
+          const SizedBox(height: 8),
           Card(color: scheme.surfaceContainerHighest, child: Padding(padding: const EdgeInsets.all(14), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('Total sisa piutang'), Text(Formatter.rupiah(_totalOutstanding), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))]))),
           const SizedBox(height: 12),
           if (_outstanding.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('Tidak ada transaksi yang masih memiliki tagihan.')) else ...[
