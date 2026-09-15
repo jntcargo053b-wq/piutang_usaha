@@ -29,7 +29,8 @@ void main() {
     if (await file.exists()) await file.delete();
   });
 
-  Future<int> customer() => db.insertPelanggan(Pelanggan(nama: 'Pelanggan Test'));
+  Future<int> customer([String name = 'Pelanggan Test']) =>
+      db.insertPelanggan(Pelanggan(nama: name));
 
   Future<int> transaction(
     int customerId, {
@@ -48,6 +49,38 @@ void main() {
     );
   }
 
+  Future<void> payment(int transactionId, int amount, {String method = 'cash'}) {
+    return db.insertPembayaran(
+      Pembayaran(
+        transaksiId: transactionId,
+        tanggal: DateTime(2026, 8, 10),
+        jumlah: amount,
+        metode: method,
+      ),
+    );
+  }
+
+  Future<TransaksiKredit> updatedTransaction(
+    int id,
+    int customerId,
+    int amount,
+  ) async {
+    final current = (await db.getTransaksiById(id))!;
+    return TransaksiKredit(
+      id: id,
+      pelangganId: customerId,
+      tanggal: current.tanggal,
+      nomorResi: current.nomorResi,
+      namaPenerima: current.namaPenerima,
+      kotaTujuan: current.kotaTujuan,
+      jumlah: amount,
+      berat: current.berat,
+      quantity: current.quantity,
+      catatan: current.catatan,
+      totalDibayar: current.totalDibayar,
+    );
+  }
+
   test('database initializes and starts empty', () async {
     expect(await db.getAllPelanggan(), isEmpty);
   });
@@ -56,18 +89,13 @@ void main() {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
 
-    await db.insertPembayaran(
-      Pembayaran(
-        transaksiId: tid,
-        tanggal: DateTime(2026, 8, 10),
-        jumlah: 100000,
-        metode: 'cash',
-      ),
-    );
+    await payment(tid, 100000);
 
     final t = await db.getTransaksiById(tid);
     expect(t, isNotNull);
-    expect(t!.sisa, 0);
+    expect(t!.totalDibayar, 100000);
+    expect(t.sisa, 0);
+    expect(t.lunas, isTrue);
   });
 
   test('overpayment is rejected', () async {
@@ -75,18 +103,107 @@ void main() {
     final tid = await transaction(cid, amount: 100000);
 
     await expectLater(
-      db.insertPembayaran(
-        Pembayaran(
-          transaksiId: tid,
-          tanggal: DateTime(2026, 8, 10),
-          jumlah: 100001,
-          metode: 'transfer',
-        ),
-      ),
+      payment(tid, 100001, method: 'transfer'),
       throwsA(isA<ValidasiException>()),
     );
 
     expect(await db.getPembayaranByTransaksi(tid), isEmpty);
+  });
+
+  test('fully paid transaction cannot receive another payment', () async {
+    final cid = await customer();
+    final tid = await transaction(cid, amount: 100000);
+    await payment(tid, 100000);
+
+    await expectLater(
+      payment(tid, 1),
+      throwsA(isA<ValidasiException>()),
+    );
+
+    final history = await db.getPembayaranByTransaksi(tid);
+    expect(history, hasLength(1));
+    expect(history.single.jumlah, 100000);
+  });
+
+  test('invalid payment method is rejected without creating payment', () async {
+    final cid = await customer();
+    final tid = await transaction(cid, amount: 100000);
+
+    await expectLater(
+      payment(tid, 10000, method: 'qris'),
+      throwsA(isA<ValidasiException>()),
+    );
+
+    expect(await db.getPembayaranByTransaksi(tid), isEmpty);
+  });
+
+  test('edit transaction below actual paid total is rejected', () async {
+    final cid = await customer();
+    final tid = await transaction(cid, amount: 100000);
+    await payment(tid, 60000);
+
+    await expectLater(
+      db.updateTransaksi(await updatedTransaction(tid, cid, 59999)),
+      throwsA(isA<ValidasiException>()),
+    );
+
+    final current = (await db.getTransaksiById(tid))!;
+    expect(current.jumlah, 100000);
+    expect(current.totalDibayar, 60000);
+    expect(current.sisa, 40000);
+  });
+
+  test('edit transaction equal to actual paid total is accepted and closes transaction', () async {
+    final cid = await customer();
+    final tid = await transaction(cid, amount: 100000);
+    await payment(tid, 60000);
+
+    await db.updateTransaksi(await updatedTransaction(tid, cid, 60000));
+
+    final current = (await db.getTransaksiById(tid))!;
+    expect(current.jumlah, 60000);
+    expect(current.totalDibayar, 60000);
+    expect(current.sisa, 0);
+    expect(current.lunas, isTrue);
+  });
+
+  test('edit transaction above actual paid total preserves payment history', () async {
+    final cid = await customer();
+    final tid = await transaction(cid, amount: 100000);
+    await payment(tid, 40000);
+
+    await db.updateTransaksi(await updatedTransaction(tid, cid, 120000));
+
+    final current = (await db.getTransaksiById(tid))!;
+    expect(current.jumlah, 120000);
+    expect(current.totalDibayar, 40000);
+    expect(current.sisa, 80000);
+
+    final history = await db.getPembayaranByTransaksi(tid);
+    expect(history, hasLength(1));
+    expect(history.single.jumlah, 40000);
+    expect(history.single.metode, 'cash');
+  });
+
+  test('edit transaction cannot move it to another customer', () async {
+    final cid1 = await customer('Pelanggan Satu');
+    final cid2 = await customer('Pelanggan Dua');
+    final tid = await transaction(cid1);
+
+    await expectLater(
+      db.updateTransaksi(await updatedTransaction(tid, cid2, 100000)),
+      throwsA(isA<ValidasiException>()),
+    );
+
+    final current = (await db.getTransaksiById(tid))!;
+    expect(current.pelangganId, cid1);
+  });
+
+  test('insert transaction with nonexistent customer is rejected', () async {
+    await expectLater(
+      transaction(999999),
+      throwsA(isA<ValidasiException>()),
+    );
   });
 
   test('customer payment allocates oldest transactions first atomically', () async {
@@ -163,14 +280,7 @@ void main() {
   test('cascade delete removes transactions and payments', () async {
     final cid = await customer();
     final tid = await transaction(cid);
-    await db.insertPembayaran(
-      Pembayaran(
-        transaksiId: tid,
-        tanggal: DateTime(2026, 8, 10),
-        jumlah: 10000,
-        metode: 'cash',
-      ),
-    );
+    await payment(tid, 10000);
 
     await db.deletePelanggan(cid);
 
