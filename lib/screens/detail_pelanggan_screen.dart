@@ -40,11 +40,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   void _showError(String message) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
 
   Future<void> _riwayatPembayaran() async {
-    await CustomerPaymentHistorySheet.show(
-      context,
-      pelangganId: widget.pelanggan.id!,
-      namaPelanggan: widget.pelanggan.nama,
-    );
+    await CustomerPaymentHistorySheet.show(context, pelangganId: widget.pelanggan.id!, namaPelanggan: widget.pelanggan.nama);
   }
 
   Future<Map<int, List<Pembayaran>>> _loadPembayaran() async {
@@ -178,6 +174,24 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     try { await context.read<PiutangProvider>().hapusTransaksi(transaksi.id!); if (mounted) await _load(); } catch (e) { if (mounted) _showError('$e'); }
   }
 
+  String _statusLabel(TransaksiKredit transaksi) {
+    if (transaksi.sisa <= 0) return 'Lunas';
+    if (transaksi.totalDibayar > 0) return 'Sebagian';
+    return 'Belum Lunas';
+  }
+
+  Color _statusContainerColor(ColorScheme scheme, TransaksiKredit transaksi) {
+    if (transaksi.sisa <= 0) return scheme.secondaryContainer;
+    if (transaksi.totalDibayar > 0) return scheme.primaryContainer;
+    return scheme.errorContainer;
+  }
+
+  Color _statusTextColor(ColorScheme scheme, TransaksiKredit transaksi) {
+    if (transaksi.sisa <= 0) return scheme.onSecondaryContainer;
+    if (transaksi.totalDibayar > 0) return scheme.onPrimaryContainer;
+    return scheme.onErrorContainer;
+  }
+
   @override Widget build(BuildContext context) {
     final theme = Theme.of(context), scheme = theme.colorScheme, hasOutstanding = rows.any((t) => t.sisa > 0);
     return Scaffold(
@@ -187,12 +201,33 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
           ? RefreshIndicator(onRefresh: _load, child: ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 150), Icon(Icons.receipt_long_outlined, size: 56, color: scheme.primary), const SizedBox(height: 12), Center(child: Text('Belum ada transaksi.', style: theme.textTheme.titleMedium)), const SizedBox(height: 4), Center(child: Text('Tekan tombol Transaksi untuk menambahkan.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium))]))
           : RefreshIndicator(onRefresh: _load, child: ListView.separated(padding: const EdgeInsets.fromLTRB(12, 12, 12, 96), physics: const AlwaysScrollableScrollPhysics(), itemCount: rows.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, index) {
               final transaksi = rows[index];
+              final statusLabel = _statusLabel(transaksi);
+              final statusBg = _statusContainerColor(scheme, transaksi);
+              final statusFg = _statusTextColor(scheme, transaksi);
               return Card(clipBehavior: Clip.antiAlias, child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                title: Text(transaksi.nomorResi, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Padding(padding: const EdgeInsets.only(top: 6), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}', maxLines: 2, overflow: TextOverflow.ellipsis), const SizedBox(height: 4), Text('Qty ${transaksi.quantity} • ${_formatBerat(transaksi.berat)} kg'), const SizedBox(height: 4), Text(Formatter.tanggalPanjang(transaksi.tanggal))])),
+                title: Row(children: [
+                  Expanded(child: Text(transaksi.nomorResi, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  const SizedBox(width: 8),
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: statusBg, borderRadius: BorderRadius.circular(999)), child: Text(statusLabel, style: theme.textTheme.labelSmall?.copyWith(color: statusFg, fontWeight: FontWeight.w700))),
+                ]),
+                subtitle: Padding(padding: const EdgeInsets.only(top: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('${transaksi.namaPenerima} • ${transaksi.kotaTujuan}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 4),
+                  Text('Qty ${transaksi.quantity} • ${_formatBerat(transaksi.berat)} kg'),
+                  const SizedBox(height: 4),
+                  Text(Formatter.tanggalPanjang(transaksi.tanggal)),
+                  const SizedBox(height: 10),
+                  Container(width: double.infinity, padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(10)), child: Column(children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Tagihan', style: theme.textTheme.bodySmall), Text(Formatter.rupiah(transaksi.jumlah), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700))]),
+                    const SizedBox(height: 4),
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Dibayar', style: theme.textTheme.bodySmall), Text(Formatter.rupiah(transaksi.totalDibayar), style: theme.textTheme.bodyMedium)]),
+                    const Divider(height: 10),
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('Sisa', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)), Text(Formatter.rupiah(transaksi.sisa < 0 ? 0 : transaksi.sisa), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800))]),
+                  ])),
+                ])),
                 trailing: PopupMenuButton<String>(onSelected: (value) { if (value == 'bayar') _bayar(transaksi); if (value == 'edit') _transaksi(existing: transaksi); if (value == 'hapus') _hapusTransaksi(transaksi); }, itemBuilder: (_) { final items = <PopupMenuEntry<String>>[]; if (transaksi.sisa > 0) items.add(const PopupMenuItem(value: 'bayar', child: Text('Bayar'))); items.add(const PopupMenuItem(value: 'edit', child: Text('Edit'))); items.add(const PopupMenuItem(value: 'hapus', child: Text('Hapus'))); return items; }),
-                leading: CircleAvatar(backgroundColor: scheme.primaryContainer, foregroundColor: scheme.onPrimaryContainer, child: Icon(transaksi.sisa <= 0 ? Icons.check : Icons.receipt_long_outlined)),
+                leading: CircleAvatar(backgroundColor: statusBg, foregroundColor: statusFg, child: Icon(transaksi.sisa <= 0 ? Icons.check : Icons.receipt_long_outlined)),
               ));
             })),
     );
