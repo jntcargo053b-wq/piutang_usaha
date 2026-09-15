@@ -127,17 +127,33 @@ class DbHelper {
     if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) {
       throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
     }
+    final db = await database;
+    final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
+    if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
     final data = t.toMap()..remove('id');
-    return (await database).insert('transaksi_kredit', data);
+    return db.insert('transaksi_kredit', data);
   }
 
   Future<int> updateTransaksi(TransaksiKredit t) async {
     _validateTransaksi(t);
     final db = await database;
-    final exists = await db.query('transaksi_kredit', columns: ['id'], where: 'id = ?', whereArgs: [t.id], limit: 1);
+    final exists = await db.query('transaksi_kredit', columns: ['id', 'pelanggan_id'], where: 'id = ?', whereArgs: [t.id], limit: 1);
     if (exists.isEmpty) throw ValidasiException('Transaksi tidak ditemukan.');
+
+    final existingCustomerId = (exists.first['pelanggan_id'] as num?)?.toInt();
+    if (existingCustomerId == null || existingCustomerId != t.pelangganId) {
+      throw ValidasiException('Pelanggan transaksi tidak boleh diubah saat edit.');
+    }
+
     final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
+
+    final paidRow = await db.rawQuery('SELECT COALESCE(SUM(jumlah), 0) AS total_dibayar FROM pembayaran WHERE transaksi_id = ?', [t.id]);
+    final totalDibayar = (paidRow.first['total_dibayar'] as num?)?.toInt() ?? 0;
+    if (t.jumlah < totalDibayar) {
+      throw ValidasiException('Jumlah transaksi tidak boleh lebih kecil dari total pembayaran yang sudah masuk (Rp $totalDibayar).');
+    }
+
     final data = t.toMap()..remove('id');
     return db.update('transaksi_kredit', data, where: 'id = ?', whereArgs: [t.id]);
   }
