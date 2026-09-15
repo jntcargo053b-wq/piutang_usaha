@@ -14,6 +14,8 @@ import '../widgets/customer_payment_sheet.dart';
 import '../widgets/customer_payment_history_sheet.dart';
 import '../widgets/payment_dialog.dart';
 
+enum _TransactionStatusFilter { all, unpaid, partial, paid }
+
 class DetailPelangganScreen extends StatefulWidget {
   final Pelanggan pelanggan;
   const DetailPelangganScreen({super.key, required this.pelanggan});
@@ -23,7 +25,23 @@ class DetailPelangganScreen extends StatefulWidget {
 class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   List<TransaksiKredit> rows = <TransaksiKredit>[];
   bool loading = true;
-  @override void initState() { super.initState(); _load(); }
+  _TransactionStatusFilter _statusFilter = _TransactionStatusFilter.all;
+  late final TextEditingController _searchController;
+  String _searchQuery = '';
+
+  @override void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _searchController.addListener(() {
+      if (mounted) setState(() => _searchQuery = _searchController.text);
+    });
+    _load();
+  }
+
+  @override void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _load() async {
     try {
@@ -192,15 +210,54 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     return scheme.onErrorContainer;
   }
 
+  bool _matchesFilter(TransaksiKredit transaksi) {
+    switch (_statusFilter) {
+      case _TransactionStatusFilter.all: return true;
+      case _TransactionStatusFilter.unpaid: return transaksi.totalDibayar <= 0 && transaksi.sisa > 0;
+      case _TransactionStatusFilter.partial: return transaksi.totalDibayar > 0 && transaksi.sisa > 0;
+      case _TransactionStatusFilter.paid: return transaksi.sisa <= 0;
+    }
+  }
+
+  List<TransaksiKredit> get _filteredRows {
+    final query = _searchQuery.trim().toLowerCase();
+    return rows.where((transaksi) {
+      if (!_matchesFilter(transaksi)) return false;
+      if (query.isEmpty) return true;
+      return transaksi.nomorResi.toLowerCase().contains(query) || transaksi.namaPenerima.toLowerCase().contains(query) || transaksi.kotaTujuan.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
+
+  String _filterLabel(_TransactionStatusFilter filter) {
+    switch (filter) {
+      case _TransactionStatusFilter.all: return 'Semua';
+      case _TransactionStatusFilter.unpaid: return 'Belum Lunas';
+      case _TransactionStatusFilter.partial: return 'Sebagian';
+      case _TransactionStatusFilter.paid: return 'Lunas';
+    }
+  }
+
   @override Widget build(BuildContext context) {
-    final theme = Theme.of(context), scheme = theme.colorScheme, hasOutstanding = rows.any((t) => t.sisa > 0);
+    final theme = Theme.of(context), scheme = theme.colorScheme, hasOutstanding = rows.any((t) => t.sisa > 0), filteredRows = _filteredRows;
     return Scaffold(
       appBar: AppBar(title: Text(widget.pelanggan.nama, maxLines: 1, overflow: TextOverflow.ellipsis), actions: [IconButton(onPressed: loading ? null : _riwayatPembayaran, tooltip: 'Riwayat pembayaran', icon: const Icon(Icons.history_outlined)), if (hasOutstanding) IconButton(onPressed: loading ? null : _bayarSemua, tooltip: 'Bayar piutang', icon: const Icon(Icons.payments_outlined)), IconButton(onPressed: loading ? null : _laporanPelanggan, tooltip: 'Laporan pelanggan', icon: const Icon(Icons.description_outlined))]),
       floatingActionButton: FloatingActionButton.extended(onPressed: _transaksi, icon: const Icon(Icons.add), label: const Text('Transaksi')),
       body: loading ? const Center(child: CircularProgressIndicator()) : rows.isEmpty
           ? RefreshIndicator(onRefresh: _load, child: ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 150), Icon(Icons.receipt_long_outlined, size: 56, color: scheme.primary), const SizedBox(height: 12), Center(child: Text('Belum ada transaksi.', style: theme.textTheme.titleMedium)), const SizedBox(height: 4), Center(child: Text('Tekan tombol Transaksi untuk menambahkan.', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium))]))
-          : RefreshIndicator(onRefresh: _load, child: ListView.separated(padding: const EdgeInsets.fromLTRB(12, 12, 12, 96), physics: const AlwaysScrollableScrollPhysics(), itemCount: rows.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, index) {
-              final transaksi = rows[index];
+          : RefreshIndicator(onRefresh: _load, child: ListView.separated(padding: const EdgeInsets.fromLTRB(12, 12, 12, 96), physics: const AlwaysScrollableScrollPhysics(), itemCount: filteredRows.length + 1, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, index) {
+              if (index == 0) {
+                return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  TextField(controller: _searchController, decoration: InputDecoration(prefixIcon: const Icon(Icons.search), suffixIcon: _searchQuery.isEmpty ? null : IconButton(tooltip: 'Bersihkan', icon: const Icon(Icons.clear), onPressed: _searchController.clear), labelText: 'Cari resi, penerima, atau kota', border: const OutlineInputBorder())),
+                  const SizedBox(height: 8),
+                  SizedBox(height: 42, child: ListView.separated(scrollDirection: Axis.horizontal, itemCount: _TransactionStatusFilter.values.length, separatorBuilder: (_, __) => const SizedBox(width: 8), itemBuilder: (_, i) {
+                    final filter = _TransactionStatusFilter.values[i];
+                    return ChoiceChip(label: Text(_filterLabel(filter)), selected: _statusFilter == filter, onSelected: (_) => setState(() => _statusFilter = filter));
+                  })),
+                  const SizedBox(height: 2),
+                  Text('${filteredRows.length} transaksi ditampilkan', style: theme.textTheme.bodySmall),
+                ]);
+              }
+              final transaksi = filteredRows[index - 1];
               final statusLabel = _statusLabel(transaksi);
               final statusBg = _statusContainerColor(scheme, transaksi);
               final statusFg = _statusTextColor(scheme, transaksi);
