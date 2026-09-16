@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
@@ -28,17 +30,32 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   _TransactionStatusFilter _statusFilter = _TransactionStatusFilter.all;
   late final TextEditingController _searchController;
   String _searchQuery = '';
+  Timer? _searchDebounce;
 
   @override void initState() {
     super.initState();
     _searchController = TextEditingController();
-    _searchController.addListener(() {
-      if (mounted) setState(() => _searchQuery = _searchController.text);
-    });
+    _searchController.addListener(_handleSearchChanged);
     _load();
   }
 
+  void _handleSearchChanged() {
+    _searchDebounce?.cancel();
+    final value = _searchController.text;
+    if (value.trim().isEmpty) {
+      if (mounted && _searchQuery.isNotEmpty) {
+        setState(() => _searchQuery = '');
+      }
+      return;
+    }
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted || _searchQuery == value) return;
+      setState(() => _searchQuery = value);
+    });
+  }
+
   @override void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
