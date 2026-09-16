@@ -26,13 +26,7 @@ class DbHelper {
   Future<Database> _initDb() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'piutang_usaha.db');
-    return openDatabase(
-      path,
-      version: _dbVersion,
-      onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
+    return openDatabase(path, version: _dbVersion, onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'), onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -105,7 +99,7 @@ class DbHelper {
   Future<List<Map<String, dynamic>>> getPelangganDenganSisa() async => (await database).rawQuery('''SELECT pl.*,COALESCE((SELECT SUM(t.jumlah) FROM transaksi_kredit t WHERE t.pelanggan_id=pl.id),0)-COALESCE((SELECT SUM(p.jumlah) FROM pembayaran p JOIN transaksi_kredit t2 ON t2.id=p.transaksi_id WHERE t2.pelanggan_id=pl.id),0) AS sisa_piutang FROM pelanggan pl ORDER BY pl.nama ASC''');
 
   Future<int> getSisaPiutangPelanggan(int id) async {
-    final r = (await (await database).rawQuery('''SELECT COALESCE((SELECT SUM(jumlah) FROM transaksi_kredit WHERE pelanggan_id=?),0)-COALESCE((SELECT SUM(p.jumlah) FROM pembayaran p JOIN transaksi_kredit t ON t.id=p.transaksi_id WHERE t.pelanggan_id=pl.id),0) AS sisa''', [id, id])).first;
+    final r = (await (await database).rawQuery('''SELECT COALESCE((SELECT SUM(jumlah) FROM transaksi_kredit WHERE pelanggan_id=?),0)-COALESCE((SELECT SUM(p.jumlah) FROM pembayaran p JOIN transaksi_kredit t ON t.id=p.transaksi_id WHERE t.pelanggan_id=?),0) AS sisa''', [id, id])).first;
     return (r['sisa'] as num?)?.toInt() ?? 0;
   }
 
@@ -115,18 +109,14 @@ class DbHelper {
     if (t.jumlah <= 0) throw ValidasiException('Jumlah transaksi harus lebih dari 0.');
     if (t.berat < 0) throw ValidasiException('Berat tidak boleh negatif.');
     if (t.quantity <= 0) throw ValidasiException('Quantity harus lebih dari 0.');
-    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) {
-      throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
-    }
+    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
   }
 
   Future<int> insertTransaksi(TransaksiKredit t) async {
     if (t.jumlah <= 0) throw ValidasiException('Jumlah transaksi harus lebih dari 0.');
     if (t.berat < 0) throw ValidasiException('Berat tidak boleh negatif.');
     if (t.quantity <= 0) throw ValidasiException('Quantity harus lebih dari 0.');
-    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) {
-      throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
-    }
+    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
     final db = await database;
     final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
@@ -139,21 +129,13 @@ class DbHelper {
     final db = await database;
     final exists = await db.query('transaksi_kredit', columns: ['id', 'pelanggan_id'], where: 'id = ?', whereArgs: [t.id], limit: 1);
     if (exists.isEmpty) throw ValidasiException('Transaksi tidak ditemukan.');
-
     final existingCustomerId = (exists.first['pelanggan_id'] as num?)?.toInt();
-    if (existingCustomerId == null || existingCustomerId != t.pelangganId) {
-      throw ValidasiException('Pelanggan transaksi tidak boleh diubah saat edit.');
-    }
-
+    if (existingCustomerId == null || existingCustomerId != t.pelangganId) throw ValidasiException('Pelanggan transaksi tidak boleh diubah saat edit.');
     final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
-
     final paidRow = await db.rawQuery('SELECT COALESCE(SUM(jumlah), 0) AS total_dibayar FROM pembayaran WHERE transaksi_id = ?', [t.id]);
     final totalDibayar = (paidRow.first['total_dibayar'] as num?)?.toInt() ?? 0;
-    if (t.jumlah < totalDibayar) {
-      throw ValidasiException('Jumlah transaksi tidak boleh lebih kecil dari total pembayaran yang sudah masuk (Rp $totalDibayar).');
-    }
-
+    if (t.jumlah < totalDibayar) throw ValidasiException('Jumlah transaksi tidak boleh lebih kecil dari total pembayaran yang sudah masuk (Rp $totalDibayar).');
     final data = t.toMap()..remove('id');
     return db.update('transaksi_kredit', data, where: 'id = ?', whereArgs: [t.id]);
   }
