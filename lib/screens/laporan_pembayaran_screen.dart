@@ -49,6 +49,12 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
     }
   }
 
+  List<String> get customerNames {
+    final names = customers.map((p) => p.nama.trim()).where((name) => name.isNotEmpty).toSet().toList();
+    names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return names;
+  }
+
   List<Map<String, dynamic>> get filteredRows => rows.where((row) {
     final customerOk = customer == 'Semua pelanggan' || '${row['nama_pelanggan'] ?? ''}' == customer;
     final rowMethod = '${row['metode'] ?? ''}';
@@ -138,7 +144,7 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
                         decoration: const InputDecoration(labelText: 'Pelanggan', prefixIcon: Icon(Icons.person_outline)),
                         items: [
                           const DropdownMenuItem(value: 'Semua pelanggan', child: Text('Semua pelanggan')),
-                          ...customers.map((p) => DropdownMenuItem(value: p.nama, child: Text(p.nama, overflow: TextOverflow.ellipsis))),
+                          ...customerNames.map((name) => DropdownMenuItem(value: name, child: Text(name, overflow: TextOverflow.ellipsis))),
                         ],
                         onChanged: (value) {
                           if (value != null) setState(() => customer = value);
