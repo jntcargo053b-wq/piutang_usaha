@@ -16,7 +16,7 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
   DateTime sampai = DateTime.now();
   List<Pelanggan> customers = <Pelanggan>[];
   List<Map<String, dynamic>> rows = <Map<String, dynamic>>[];
-  String customer = 'Semua pelanggan';
+  int customerId = 0;
   String method = 'Semua metode';
   bool loading = true;
   bool exporting = false;
@@ -49,14 +49,22 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
     }
   }
 
-  List<String> get customerNames {
-    final names = customers.map((p) => p.nama.trim()).where((name) => name.isNotEmpty).toSet().toList();
-    names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-    return names;
+  String get selectedCustomerName {
+    if (customerId == 0) return 'Semua pelanggan';
+    for (final p in customers) {
+      if (p.id == customerId) return p.nama.trim();
+    }
+    return 'Semua pelanggan';
+  }
+
+  List<Pelanggan> get customerOptions {
+    final list = customers.where((p) => p.id != null && p.nama.trim().isNotEmpty).toList(growable: false);
+    return list;
   }
 
   List<Map<String, dynamic>> get filteredRows => rows.where((row) {
-    final customerOk = customer == 'Semua pelanggan' || '${row['nama_pelanggan'] ?? ''}' == customer;
+    final rowCustomerId = (row['pelanggan_id'] as num?)?.toInt() ?? 0;
+    final customerOk = customerId == 0 || rowCustomerId == customerId;
     final rowMethod = '${row['metode'] ?? ''}';
     final methodOk = method == 'Semua metode' || rowMethod == method;
     return customerOk && methodOk;
@@ -79,9 +87,9 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
     setState(() => exporting = true);
     try {
       if (pdf) {
-        await PaymentReportService.exportPdf(rows: data, dari: dari, sampai: sampai, customer: customer, method: _methodLabel(method));
+        await PaymentReportService.exportPdf(rows: data, dari: dari, sampai: sampai, customer: selectedCustomerName, method: _methodLabel(method));
       } else {
-        await PaymentReportService.exportExcel(rows: data, dari: dari, sampai: sampai, customer: customer, method: _methodLabel(method));
+        await PaymentReportService.exportExcel(rows: data, dari: dari, sampai: sampai, customer: selectedCustomerName, method: _methodLabel(method));
       }
     } catch (e) {
       if (mounted) _error('Gagal mengekspor laporan: ${e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '')}');
@@ -139,15 +147,15 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
                         _dateTile('Sampai', sampai, () => _pick(false)),
                       ]),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: customer,
+                      DropdownButtonFormField<int>(
+                        initialValue: customerId,
                         decoration: const InputDecoration(labelText: 'Pelanggan', prefixIcon: Icon(Icons.person_outline)),
                         items: [
-                          const DropdownMenuItem(value: 'Semua pelanggan', child: Text('Semua pelanggan')),
-                          ...customerNames.map((name) => DropdownMenuItem(value: name, child: Text(name, overflow: TextOverflow.ellipsis))),
+                          const DropdownMenuItem(value: 0, child: Text('Semua pelanggan')),
+                          ...customerOptions.map((p) => DropdownMenuItem(value: p.id!, child: Text(p.nama.trim(), overflow: TextOverflow.ellipsis))),
                         ],
                         onChanged: (value) {
-                          if (value != null) setState(() => customer = value);
+                          if (value != null) setState(() => customerId = value);
                         },
                       ),
                       const SizedBox(height: 12),
