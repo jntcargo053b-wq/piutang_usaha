@@ -234,6 +234,25 @@ class DbHelper {
     return r.map((x) => Pembayaran.fromMap(x)).toList();
   }
 
+  Future<Map<int, List<Pembayaran>>> getPembayaranByTransaksiIds(Iterable<int> ids) async {
+    final uniqueIds = ids.toSet();
+    if (uniqueIds.isEmpty) return <int, List<Pembayaran>>{};
+    final db = await database;
+    final placeholders = List<String>.filled(uniqueIds.length, '?').join(',');
+    final rows = await db.query(
+      'pembayaran',
+      where: 'transaksi_id IN ($placeholders)',
+      whereArgs: uniqueIds.toList(growable: false),
+      orderBy: 'tanggal ASC,id ASC',
+    );
+    final result = <int, List<Pembayaran>>{};
+    for (final row in rows) {
+      final pembayaran = Pembayaran.fromMap(row);
+      result.putIfAbsent(pembayaran.transaksiId, () => <Pembayaran>[]).add(pembayaran);
+    }
+    return result;
+  }
+
   Future<void> validateSchema([DatabaseExecutor? executor]) async {
     final db = executor ?? await database;
     final tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('pelanggan','transaksi_kredit','pembayaran')");
