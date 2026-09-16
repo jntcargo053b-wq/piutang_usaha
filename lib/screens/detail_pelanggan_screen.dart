@@ -62,11 +62,8 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Future<Map<int, List<Pembayaran>>> _loadPembayaran() async {
-    final result = <int, List<Pembayaran>>{};
-    for (final transaksi in rows) {
-      result[transaksi.id!] = await DbHelper.instance.getPembayaranByTransaksi(transaksi.id!);
-    }
-    return result;
+    final ids = rows.map((transaksi) => transaksi.id!).toList(growable: false);
+    return DbHelper.instance.getPembayaranByTransaksiIds(ids);
   }
 
   Future<void> _laporanPelanggan() async {
