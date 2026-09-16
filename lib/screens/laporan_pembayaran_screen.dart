@@ -61,25 +61,21 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
   int get transferTotal => filteredRows.where((r) => '${r['metode'] ?? ''}' == 'transfer').fold<int>(0, (s, r) => s + ((r['jumlah'] as num?)?.toInt() ?? 0));
 
   Future<void> _pick(bool start) async {
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: start ? dari : sampai,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
+    final selected = await showDatePicker(context: context, initialDate: start ? dari : sampai, firstDate: DateTime(2000), lastDate: DateTime(2100));
     if (selected == null || !mounted) return;
     setState(() => start ? dari = selected : sampai = selected);
     await _load();
   }
 
   Future<void> _export(bool pdf) async {
-    if (exporting || filteredRows.isEmpty) return;
+    final data = filteredRows;
+    if (exporting || data.isEmpty) return;
     setState(() => exporting = true);
     try {
       if (pdf) {
-        await PaymentReportService.exportPdf(rows: filteredRows, dari: dari, sampai: sampai, customer: customer, method: _methodLabel(method));
+        await PaymentReportService.exportPdf(rows: data, dari: dari, sampai: sampai, customer: customer, method: _methodLabel(method));
       } else {
-        await PaymentReportService.exportExcel(rows: filteredRows, dari: dari, sampai: sampai, customer: customer, method: _methodLabel(method));
+        await PaymentReportService.exportExcel(rows: data, dari: dari, sampai: sampai, customer: customer, method: _methodLabel(method));
       }
     } catch (e) {
       if (mounted) _error('Gagal mengekspor laporan: ${e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '')}');
@@ -132,9 +128,9 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
                     padding: const EdgeInsets.all(14),
                     child: Column(children: [
                       Row(children: [
-                        Expanded(child: _dateTile('Dari', dari, () => _pick(true))),
+                        _dateTile('Dari', dari, () => _pick(true)),
                         const SizedBox(width: 10),
-                        Expanded(child: _dateTile('Sampai', sampai, () => _pick(false))),
+                        _dateTile('Sampai', sampai, () => _pick(false)),
                       ]),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -166,15 +162,15 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
                 ),
                 const SizedBox(height: 14),
                 Row(children: [
-                  Expanded(child: _summaryCard('Total pembayaran', total, Icons.account_balance_wallet_outlined, scheme.primary)),
+                  _summaryCard('Total pembayaran', total, Icons.account_balance_wallet_outlined, scheme.primary),
                   const SizedBox(width: 10),
-                  Expanded(child: _summaryCard('Jumlah transaksi', data.length, Icons.receipt_long_outlined, scheme.secondary)),
+                  _summaryCard('Jumlah pembayaran', data.length, Icons.receipt_long_outlined, scheme.secondary),
                 ]),
                 const SizedBox(height: 10),
                 Row(children: [
-                  Expanded(child: _summaryCard('Cash', cashTotal, Icons.money_outlined, scheme.tertiary)),
+                  _summaryCard('Cash', cashTotal, Icons.money_outlined, scheme.tertiary),
                   const SizedBox(width: 10),
-                  Expanded(child: _summaryCard('Transfer', transferTotal, Icons.account_balance_outlined, scheme.primary)),
+                  _summaryCard('Transfer', transferTotal, Icons.account_balance_outlined, scheme.primary),
                 ]),
                 const SizedBox(height: 24),
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -191,15 +187,22 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
                     const Text('Ubah periode, pelanggan, atau metode pembayaran.', textAlign: TextAlign.center),
                   ])))
                 else
-                  ...data.map((row) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.fromLTRB(16, 7, 16, 7),
-                      leading: CircleAvatar(child: Text('${data.indexOf(row) + 1}')),
-                      title: Text(Formatter.rupiah((row['jumlah'] as num?)?.toInt() ?? 0), style: const TextStyle(fontWeight: FontWeight.w800)),
-                      subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text('${Formatter.tanggalPanjang(DateTime.parse('${row['tanggal']}'))} • ${row['nama_pelanggan'] ?? ''}\n${_displayMethod(row['metode'])}${'${row['keterangan'] ?? ''}'.trim().isEmpty ? '' : ' • ${'${row['keterangan']}'.trim()}'}', maxLines: 3, overflow: TextOverflow.ellipsis)),
-                    ),
-                  )),
+                  ...data.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final row = entry.value;
+                    final amount = (row['jumlah'] as num?)?.toInt() ?? 0;
+                    final note = '${row['keterangan'] ?? ''}'.trim();
+                    final detail = '${_displayMethod(row['metode'])}${note.isEmpty ? '' : ' • $note'}';
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.fromLTRB(16, 7, 16, 7),
+                        leading: CircleAvatar(child: Text('${index + 1}')),
+                        title: Text(Formatter.rupiah(amount), style: const TextStyle(fontWeight: FontWeight.w800)),
+                        subtitle: Padding(padding: const EdgeInsets.only(top: 5), child: Text('${Formatter.tanggalPanjang(DateTime.parse('${row['tanggal']}'))} • ${row['nama_pelanggan'] ?? ''}\n$detail', maxLines: 3, overflow: TextOverflow.ellipsis)),
+                      ),
+                    );
+                  }),
               ],
             ),
     );
@@ -221,7 +224,7 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
       const SizedBox(height: 8),
       Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF667085))),
       const SizedBox(height: 3),
-      Text(label == 'Jumlah transaksi' ? '$value' : Formatter.rupiah(value), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+      Text(label == 'Jumlah pembayaran' ? '$value' : Formatter.rupiah(value), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
     ]),
   )));
 }
