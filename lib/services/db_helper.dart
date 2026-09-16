@@ -26,13 +26,7 @@ class DbHelper {
   Future<Database> _initDb() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, 'piutang_usaha.db');
-    return openDatabase(
-      path,
-      version: _dbVersion,
-      onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-    );
+    return openDatabase(path, version: _dbVersion, onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'), onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -115,18 +109,14 @@ class DbHelper {
     if (t.jumlah <= 0) throw ValidasiException('Jumlah transaksi harus lebih dari 0.');
     if (t.berat < 0) throw ValidasiException('Berat tidak boleh negatif.');
     if (t.quantity <= 0) throw ValidasiException('Quantity harus lebih dari 0.');
-    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) {
-      throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
-    }
+    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
   }
 
   Future<int> insertTransaksi(TransaksiKredit t) async {
     if (t.jumlah <= 0) throw ValidasiException('Jumlah transaksi harus lebih dari 0.');
     if (t.berat < 0) throw ValidasiException('Berat tidak boleh negatif.');
     if (t.quantity <= 0) throw ValidasiException('Quantity harus lebih dari 0.');
-    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) {
-      throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
-    }
+    if (t.nomorResi.trim().isEmpty || t.namaPenerima.trim().isEmpty || t.kotaTujuan.trim().isEmpty) throw ValidasiException('Nomor resi, nama penerima, dan kota tujuan wajib diisi.');
     final db = await database;
     final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
@@ -139,21 +129,13 @@ class DbHelper {
     final db = await database;
     final exists = await db.query('transaksi_kredit', columns: ['id', 'pelanggan_id'], where: 'id = ?', whereArgs: [t.id], limit: 1);
     if (exists.isEmpty) throw ValidasiException('Transaksi tidak ditemukan.');
-
     final existingCustomerId = (exists.first['pelanggan_id'] as num?)?.toInt();
-    if (existingCustomerId == null || existingCustomerId != t.pelangganId) {
-      throw ValidasiException('Pelanggan transaksi tidak boleh diubah saat edit.');
-    }
-
+    if (existingCustomerId == null || existingCustomerId != t.pelangganId) throw ValidasiException('Pelanggan transaksi tidak boleh diubah saat edit.');
     final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
-
     final paidRow = await db.rawQuery('SELECT COALESCE(SUM(jumlah), 0) AS total_dibayar FROM pembayaran WHERE transaksi_id = ?', [t.id]);
     final totalDibayar = (paidRow.first['total_dibayar'] as num?)?.toInt() ?? 0;
-    if (t.jumlah < totalDibayar) {
-      throw ValidasiException('Jumlah transaksi tidak boleh lebih kecil dari total pembayaran yang sudah masuk (Rp $totalDibayar).');
-    }
-
+    if (t.jumlah < totalDibayar) throw ValidasiException('Jumlah transaksi tidak boleh lebih kecil dari total pembayaran yang sudah masuk (Rp $totalDibayar).');
     final data = t.toMap()..remove('id');
     return db.update('transaksi_kredit', data, where: 'id = ?', whereArgs: [t.id]);
   }
@@ -207,7 +189,7 @@ class DbHelper {
 
   Future<List<Map<String, dynamic>>> getPembayaranPeriode({required DateTime dari, required DateTime sampai}) async {
     final a = dari.toIso8601String(), b = DateTime(sampai.year, sampai.month, sampai.day + 1).toIso8601String();
-    return (await database).rawQuery('''SELECT p.id,p.tanggal,p.jumlah,p.metode,p.keterangan,t.deskripsi AS deskripsi_transaksi,pl.nama AS nama_pelanggan FROM pembayaran p JOIN transaksi_kredit t ON t.id=p.transaksi_id JOIN pelanggan pl ON pl.id=t.pelanggan_id WHERE p.tanggal>=? AND p.tanggal<? ORDER BY p.tanggal ASC,p.id ASC''', [a, b]);
+    return (await database).rawQuery('''SELECT p.id,p.tanggal,p.jumlah,p.metode,p.keterangan,t.deskripsi AS deskripsi_transaksi,pl.id AS pelanggan_id,pl.nama AS nama_pelanggan FROM pembayaran p JOIN transaksi_kredit t ON t.id=p.transaksi_id JOIN pelanggan pl ON pl.id=t.pelanggan_id WHERE p.tanggal>=? AND p.tanggal<? ORDER BY p.tanggal ASC,p.id ASC''', [a, b]);
   }
 
   Future<int> insertPembayaran(Pembayaran p) async {
@@ -239,12 +221,7 @@ class DbHelper {
     if (uniqueIds.isEmpty) return <int, List<Pembayaran>>{};
     final db = await database;
     final placeholders = List<String>.filled(uniqueIds.length, '?').join(',');
-    final rows = await db.query(
-      'pembayaran',
-      where: 'transaksi_id IN ($placeholders)',
-      whereArgs: uniqueIds.toList(growable: false),
-      orderBy: 'tanggal ASC,id ASC',
-    );
+    final rows = await db.query('pembayaran', where: 'transaksi_id IN ($placeholders)', whereArgs: uniqueIds.toList(growable: false), orderBy: 'tanggal ASC,id ASC');
     final result = <int, List<Pembayaran>>{};
     for (final row in rows) {
       final pembayaran = Pembayaran.fromMap(row);
@@ -252,16 +229,4 @@ class DbHelper {
     }
     return result;
   }
-
-  Future<void> validateSchema([DatabaseExecutor? executor]) async {
-    final db = executor ?? await database;
-    final tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('pelanggan','transaksi_kredit','pembayaran')");
-    final names = tables.map((r) => r['name'] as String).toSet();
-    const required = {'pelanggan', 'transaksi_kredit', 'pembayaran'};
-    if (!names.containsAll(required)) throw ValidasiException('Database tidak kompatibel.');
-  }
-
-  Future<void> flushForBackup() async { final db = _db; if (db == null) return; await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)'); }
-  Future<String> getDbPath() async => join(await getDatabasesPath(), 'piutang_usaha.db');
-  Future<void> tutupKoneksi() async { if (_db != null) { await _db!.close(); _db = null; } }
 }
