@@ -228,7 +228,7 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: _method,
+              initialValue: _method,
               decoration: const InputDecoration(labelText: 'Metode pembayaran'),
               items: const [
                 DropdownMenuItem(value: PaymentService.cash, child: Text('Cash')),
