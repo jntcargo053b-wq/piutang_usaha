@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/piutang_provider.dart';
 import '../services/export_service.dart';
 import '../utils/formatter.dart';
+import 'laporan_pembayaran_screen.dart';
 import 'report_header_settings_screen.dart';
 
 class LaporanScreen extends StatefulWidget {
@@ -60,6 +61,11 @@ class _LaporanScreenState extends State<LaporanScreen> {
     finally { if (mounted) setState(() => exporting = false); }
   }
 
+  Future<void> _openPaymentReport() async {
+    if (exporting) return;
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const LaporanPembayaranScreen()));
+  }
+
   @override
   void initState() { super.initState(); WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _load(); }); }
 
@@ -93,6 +99,16 @@ class _LaporanScreenState extends State<LaporanScreen> {
                       IconButton(onPressed: _load, tooltip: 'Muat ulang', icon: const Icon(Icons.refresh)),
                       const SizedBox(width: 4),
                     ]),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  child: ListTile(
+                    leading: CircleAvatar(backgroundColor: scheme.primaryContainer, foregroundColor: scheme.primary, child: const Icon(Icons.payments_outlined)),
+                    title: const Text('Laporan Pembayaran', style: TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: const Text('Filter tanggal, pelanggan, metode, dan export PDF/Excel'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: _openPaymentReport,
                   ),
                 ),
                 const SizedBox(height: 12),
