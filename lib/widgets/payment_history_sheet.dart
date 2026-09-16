@@ -5,6 +5,7 @@ import '../models/transaksi_kredit.dart';
 import '../services/payment_service.dart';
 import '../services/db_helper.dart';
 import '../utils/formatter.dart';
+import '../utils/rupiah_input_formatter.dart';
 
 class PaymentHistorySheet extends StatefulWidget {
   final TransaksiKredit transaksi;
@@ -156,7 +157,7 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
   @override
   void initState() {
     super.initState();
-    _amountController = TextEditingController(text: widget.payment.jumlah.toString());
+    _amountController = TextEditingController(text: _formatAmount(widget.payment.jumlah));
     _noteController = TextEditingController(text: widget.payment.keterangan ?? '');
     _date = widget.payment.tanggal;
     _method = widget.payment.metode == PaymentService.transfer ? PaymentService.transfer : PaymentService.cash;
@@ -213,6 +214,18 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  static String _formatAmount(int amount) {
+    final digits = amount.toString();
+    final first = digits.length % 3;
+    final buffer = StringBuffer();
+    if (first != 0) buffer.write(digits.substring(0, first));
+    for (var i = first; i < digits.length; i += 3) {
+      if (buffer.length > 0) buffer.write('.');
+      buffer.write(digits.substring(i, i + 3));
+    }
+    return buffer.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -224,6 +237,7 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
+              inputFormatters: const [RupiahInputFormatter()],
               decoration: const InputDecoration(labelText: 'Jumlah pembayaran', prefixText: 'Rp '),
             ),
             const SizedBox(height: 12),
