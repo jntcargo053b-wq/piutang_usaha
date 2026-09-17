@@ -254,14 +254,6 @@ class _PelangganScreenState extends State<PelangganScreen> {
           'Pelanggan',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Tambah pelanggan',
-            onPressed: _form,
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _form,
