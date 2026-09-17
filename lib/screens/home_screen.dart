@@ -4,6 +4,7 @@ import '../providers/piutang_provider.dart';
 import '../utils/formatter.dart';
 import 'pelanggan_screen.dart';
 import 'laporan_screen.dart';
+import 'backup_restore_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -56,19 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _backup() async {
-    try {
-      await context.read<PiutangProvider>().backupDatabase();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Backup database berhasil dibuat.')),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_friendlyError(e))),
-        );
-      }
-    }
+    await _open(const BackupRestoreScreen());
   }
 
   String _friendlyError(Object e) {
@@ -98,7 +87,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
-          IconButton(tooltip: 'Backup database', onPressed: _backup, icon: const Icon(Icons.cloud_upload_outlined)),
+          IconButton(
+            tooltip: 'Backup & Restore',
+            onPressed: loading ? null : _backup,
+            icon: const Icon(Icons.backup_outlined),
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -132,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _quickAction(context, Icons.people_alt_outlined, 'Pelanggan', 'Kelola pelanggan', () => _open(const PelangganScreen())),
                       _quickAction(context, Icons.receipt_long_outlined, 'Transaksi', 'Lihat transaksi', () => _open(const PelangganScreen())),
                       _quickAction(context, Icons.bar_chart_outlined, 'Laporan', 'Ringkasan bisnis', () => _open(const LaporanScreen())),
-                      _quickAction(context, Icons.backup_outlined, 'Backup', 'Amankan data', _backup),
+                      _quickAction(context, Icons.backup_outlined, 'Backup & Restore', 'Amankan / pulihkan data', _backup),
                     ],
                   ),
                   const SizedBox(height: 26),
