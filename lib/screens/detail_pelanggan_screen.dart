@@ -43,9 +43,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
     _searchDebounce?.cancel();
     final value = _searchController.text;
     if (value.trim().isEmpty) {
-      if (mounted && _searchQuery.isNotEmpty) {
-        setState(() => _searchQuery = '');
-      }
+      if (mounted && _searchQuery.isNotEmpty) setState(() => _searchQuery = '');
       return;
     }
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
@@ -130,17 +128,23 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
       await showModalBottomSheet<void>(context: context, isScrollControlled: true, builder: (ctx) => StatefulBuilder(builder: (ctx, setSheetState) => Padding(
         padding: EdgeInsets.fromLTRB(16, 12, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
         child: SingleChildScrollView(child: Form(key: formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(isEdit ? 'Edit Transaksi Kredit' : 'Tambah Transaksi Kredit', style: Theme.of(ctx).textTheme.titleLarge),
-          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: Text(isEdit ? 'Edit Transaksi Kredit' : 'Tambah Transaksi Kredit', style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800))),
+            IconButton(tooltip: 'Tutup', onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close)),
+          ]),
+          Text(isEdit ? 'Perbarui data transaksi tanpa mengubah riwayat pembayaran.' : 'Isi data pengiriman dan tagihan. Field bertanda * wajib diisi.', style: Theme.of(ctx).textTheme.bodySmall),
+          const SizedBox(height: 16),
+          const _FormSectionTitle(icon: Icons.local_shipping_outlined, title: 'Informasi Pengiriman'),
+          const SizedBox(height: 10),
           TextFormField(controller: res, textInputAction: TextInputAction.next, decoration: InputDecoration(labelText: 'Nomor Resi *', border: const OutlineInputBorder(), suffixIcon: IconButton(tooltip: 'Scan barcode', icon: const Icon(Icons.qr_code_scanner), onPressed: () async {
             final scanned = await _scanResi();
             if (!ctx.mounted) return;
-            if (scanned != null && scanned.trim().isNotEmpty) {
-              setSheetState(() { res.text = scanned.trim(); res.selection = TextSelection.collapsed(offset: res.text.length); });
-            }
+            if (scanned != null && scanned.trim().isNotEmpty) setSheetState(() { res.text = scanned.trim(); res.selection = TextSelection.collapsed(offset: res.text.length); });
           })), validator: (value) => value == null || value.trim().isEmpty ? 'Nomor resi wajib diisi' : null),
           const SizedBox(height: 10),
           TextFormField(controller: penerima, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Nama Penerima *', border: OutlineInputBorder()), validator: (value) => value == null || value.trim().isEmpty ? 'Nama penerima wajib diisi' : null),
+          const SizedBox(height: 16),
+          const _FormSectionTitle(icon: Icons.place_outlined, title: 'Tujuan & Paket'),
           const SizedBox(height: 10),
           TextFormField(controller: kota, readOnly: true, decoration: const InputDecoration(labelText: 'Kota Tujuan *', hintText: 'Pilih kabupaten/kota', border: OutlineInputBorder(), suffixIcon: Icon(Icons.arrow_drop_down)), onTap: () async {
             final selected = await _pilihKota(kota.text);
@@ -153,6 +157,8 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
             const SizedBox(width: 10),
             Expanded(child: TextFormField(controller: berat, keyboardType: const TextInputType.numberWithOptions(decimal: true), textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Berat (kg) *', hintText: '0,5', suffixText: 'kg', border: OutlineInputBorder()), validator: (value) { final n = double.tryParse((value ?? '').trim().replaceAll(',', '.')); return n == null || n <= 0 ? 'Berat tidak valid' : null; })),
           ]),
+          const SizedBox(height: 16),
+          const _FormSectionTitle(icon: Icons.payments_outlined, title: 'Nilai Transaksi'),
           const SizedBox(height: 10),
           TextFormField(controller: jumlah, keyboardType: TextInputType.number, textInputAction: TextInputAction.next, inputFormatters: const [RupiahInputFormatter()], decoration: const InputDecoration(labelText: 'Jumlah *', prefixText: 'Rp ', border: OutlineInputBorder()), validator: (value) {
             final n = int.tryParse((value ?? '').replaceAll('.', '').trim());
@@ -160,15 +166,17 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
             if (isEdit && n < existing.totalDibayar) return 'Jumlah tidak boleh lebih kecil dari total pembayaran (${existing.totalDibayar}).';
             return null;
           }),
+          const SizedBox(height: 16),
+          const _FormSectionTitle(icon: Icons.notes_outlined, title: 'Catatan & Tanggal'),
           const SizedBox(height: 10),
-          TextFormField(controller: catatan, decoration: const InputDecoration(labelText: 'Catatan', border: OutlineInputBorder()), maxLines: 2),
+          TextFormField(controller: catatan, decoration: const InputDecoration(labelText: 'Catatan', hintText: 'Opsional', border: OutlineInputBorder()), maxLines: 2),
           const SizedBox(height: 4),
-          ListTile(contentPadding: EdgeInsets.zero, leading: const Icon(Icons.calendar_today), title: Text(Formatter.tanggalPanjang(tanggal)), onTap: () async {
+          Card(margin: EdgeInsets.zero, child: ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2), leading: const Icon(Icons.calendar_today_outlined), title: const Text('Tanggal transaksi', style: TextStyle(fontSize: 12)), subtitle: Text(Formatter.tanggalPanjang(tanggal), style: const TextStyle(fontWeight: FontWeight.w700)), trailing: const Icon(Icons.chevron_right), onTap: () async {
             final selected = await showDatePicker(context: ctx, firstDate: DateTime(2000), lastDate: DateTime(2100), initialDate: tanggal);
             if (!ctx.mounted) return;
             if (selected != null) setSheetState(() => tanggal = selected);
-          }),
-          const SizedBox(height: 8),
+          })),
+          const SizedBox(height: 16),
           FilledButton.icon(onPressed: saving ? null : () async {
             if (!formKey.currentState!.validate()) return;
             setSheetState(() => saving = true);
@@ -305,6 +313,18 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   String _formatBerat(double value) => value == value.roundToDouble() ? value.toInt().toString() : value.toString().replaceAll('.', ',');
+}
+
+class _FormSectionTitle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  const _FormSectionTitle({required this.icon, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(children: [Icon(icon, size: 19, color: scheme.primary), const SizedBox(width: 8), Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800))]);
+  }
 }
 
 class _CityPicker extends StatefulWidget {
