@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -9,7 +10,7 @@ import '../utils/formatter.dart';
 import 'report_header_settings.dart';
 
 class PaymentReportService {
-  static Future<void> exportPdf({
+  static Future<Uint8List> buildPdf({
     required List<Map<String, dynamic>> rows,
     required DateTime dari,
     required DateTime sampai,
@@ -91,10 +92,30 @@ class PaymentReportService {
       ],
     ));
 
+    return doc.save();
+  }
+
+
+  static Future<void> exportPdf({
+    required List<Map<String, dynamic>> rows,
+    required DateTime dari,
+    required DateTime sampai,
+    required String customer,
+    required String method,
+  }) async {
+    final bytes = await buildPdf(
+      rows: rows,
+      dari: dari,
+      sampai: sampai,
+      customer: customer,
+      method: method,
+    );
     final dir = await getTemporaryDirectory();
     final file = File(p.join(dir.path, 'laporan_pembayaran_${DateTime.now().millisecondsSinceEpoch}.pdf'));
-    await file.writeAsBytes(await doc.save());
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan Pembayaran'));
+    await file.writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], text: 'Laporan Pembayaran'),
+    );
   }
 
   static Future<void> exportExcel({
