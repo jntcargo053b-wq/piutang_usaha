@@ -29,7 +29,7 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
     setState(() => saving = true);
 
     try {
-      final result = await FilePicker.saveFile(
+      final result = await FilePicker.platform.saveFile(
         dialogTitle: 'Simpan laporan PDF',
         fileName: widget.fileName,
         bytes: widget.pdfBytes,
