@@ -87,13 +87,6 @@ class ExportService {
         ]),
       ],
     ));
-    final dir = await getTemporaryDirectory();
-    final file = File(p.join(dir.path, 'laporan_piutang_${DateTime.now().millisecondsSinceEpoch}.pdf'));
-    await file.writeAsBytes(await doc.save());
-    await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan Piutang Usaha'));
-  }
-
-
     return doc.save();
   }
 
