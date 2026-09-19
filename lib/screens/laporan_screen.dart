@@ -5,6 +5,7 @@ import '../services/export_service.dart';
 import '../utils/formatter.dart';
 import 'laporan_pembayaran_screen.dart';
 import 'report_header_settings_screen.dart';
+import 'pdf_preview_screen.dart';
 
 class LaporanScreen extends StatefulWidget {
   const LaporanScreen({super.key});
@@ -226,7 +227,18 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
     setState(() => exporting = true);
     try {
-      await ExportService.exportRekapKePdf(data, dari, sampai);
+      final bytes = await ExportService.buildRekapPdf(data, dari, sampai);
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PdfPreviewScreen(
+            pdfBytes: bytes,
+            fileName: 'laporan_piutang_${DateTime.now().millisecondsSinceEpoch}.pdf',
+            title: 'Preview Laporan Piutang',
+          ),
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
