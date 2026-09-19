@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -9,7 +10,11 @@ import '../utils/formatter.dart';
 import 'report_header_settings.dart';
 
 class ExportService {
-  static Future<void> exportRekapKePdf(List<Map<String, dynamic>> rows, DateTime dari, DateTime sampai) async {
+  static Future<Uint8List> buildRekapPdf(
+    List<Map<String, dynamic>> rows,
+    DateTime dari,
+    DateTime sampai,
+  ) async {
     final settings = await ReportHeaderSettings.load();
     pw.MemoryImage? logo;
     if (settings.logoPath != null) {
@@ -86,6 +91,24 @@ class ExportService {
     final file = File(p.join(dir.path, 'laporan_piutang_${DateTime.now().millisecondsSinceEpoch}.pdf'));
     await file.writeAsBytes(await doc.save());
     await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan Piutang Usaha'));
+  }
+
+
+    return doc.save();
+  }
+
+  static Future<void> exportRekapKePdf(
+    List<Map<String, dynamic>> rows,
+    DateTime dari,
+    DateTime sampai,
+  ) async {
+    final bytes = await buildRekapPdf(rows, dari, sampai);
+    final dir = await getTemporaryDirectory();
+    final file = File(p.join(dir.path, 'laporan_piutang_${DateTime.now().millisecondsSinceEpoch}.pdf'));
+    await file.writeAsBytes(bytes);
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], text: 'Laporan Piutang Usaha'),
+    );
   }
 
   static pw.Widget _totalCell(int value) => pw.Padding(
