@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/pelanggan.dart';
 import '../services/db_helper.dart';
 import '../services/payment_report_service.dart';
+import 'pdf_preview_screen.dart';
 import '../utils/formatter.dart';
 
 class LaporanPembayaranScreen extends StatefulWidget {
@@ -87,7 +88,24 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
     setState(() => exporting = true);
     try {
       if (pdf) {
-        await PaymentReportService.exportPdf(rows: data, dari: dari, sampai: sampai, customer: selectedCustomerName, method: _methodLabel(method));
+        final bytes = await PaymentReportService.buildPdf(
+          rows: data,
+          dari: dari,
+          sampai: sampai,
+          customer: selectedCustomerName,
+          method: _methodLabel(method),
+        );
+        if (!mounted) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PdfPreviewScreen(
+              pdfBytes: bytes,
+              fileName: 'laporan_pembayaran_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              title: 'Preview Laporan Pembayaran',
+            ),
+          ),
+        );
       } else {
         await PaymentReportService.exportExcel(rows: data, dari: dari, sampai: sampai, customer: selectedCustomerName, method: _methodLabel(method));
       }
