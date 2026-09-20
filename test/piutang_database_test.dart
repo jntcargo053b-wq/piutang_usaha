@@ -99,6 +99,41 @@ void main() {
     expect(t.lunas, isTrue);
   });
 
+  test('duplicate receipt number is rejected on insert and edit', () async {
+    final cid = await customer();
+    final otherCid = await customer('Pelanggan Lain');
+    final firstId = await transaction(cid, resi: 'DUP-1');
+
+    await expectLater(
+      transaction(otherCid, resi: 'dup-1'),
+      throwsA(isA<ValidasiException>()),
+    );
+
+    final secondId = await transaction(otherCid, resi: 'DUP-2');
+    final second = await db.getTransaksiById(secondId);
+    expect(second, isNotNull);
+
+    await expectLater(
+      db.updateTransaksi(TransaksiKredit(
+        id: secondId,
+        pelangganId: otherCid,
+        tanggal: second!.tanggal,
+        nomorResi: ' DUP-1 ',
+        namaPenerima: second.namaPenerima,
+        kotaTujuan: second.kotaTujuan,
+        jumlah: second.jumlah,
+        berat: second.berat,
+        quantity: second.quantity,
+        catatan: second.catatan,
+        totalDibayar: second.totalDibayar,
+      )),
+      throwsA(isA<ValidasiException>()),
+    );
+
+    final unchanged = await db.getTransaksiById(firstId);
+    expect(unchanged!.nomorResi, 'DUP-1');
+  });
+
   test('overpayment is rejected', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
