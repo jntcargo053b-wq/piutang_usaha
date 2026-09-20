@@ -40,7 +40,7 @@ class _ImportTransaksiScreenState extends State<ImportTransaksiScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Konfirmasi import'),
-        content: Text('Import ' + preview.rows.length.toString() + ' transaksi? Pelanggan yang belum ada akan dibuat otomatis. Nomor resi yang sudah ada akan ditolak dan seluruh proses dibatalkan jika ada satu baris gagal.'),
+        content: Text('Import ${preview.rows.length} transaksi? Pelanggan yang belum ada akan dibuat otomatis. Nomor resi yang sudah ada akan ditolak dan seluruh proses dibatalkan jika ada satu baris gagal.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Import')),
@@ -54,7 +54,7 @@ class _ImportTransaksiScreenState extends State<ImportTransaksiScreen> {
       if (!mounted) return;
       await context.read<PiutangProvider>().muatPelanggan();
       setState(() => _preview = null);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.imported.toString() + ' transaksi berhasil diimport.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.imported} transaksi berhasil diimport.')));
     } catch (e) { _error(e); }
     finally { if (mounted) setState(() => _busy = false); }
   }
@@ -95,7 +95,7 @@ class _ImportTransaksiScreenState extends State<ImportTransaksiScreen> {
               if (preview.errors.isNotEmpty)
                 Text(preview.errors.join('\n'), style: TextStyle(color: Theme.of(context).colorScheme.error))
               else ...[
-                Text(preview.rows.length.toString() + ' transaksi siap diimport.', style: const TextStyle(fontWeight: FontWeight.w700)),
+                Text('${preview.rows.length} transaksi siap diimport.', style: const TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 SizedBox(height: 310, child: ListView.separated(
                   itemCount: preview.rows.length > 50 ? 50 : preview.rows.length,
@@ -123,9 +123,9 @@ class _ImportTransaksiScreenState extends State<ImportTransaksiScreen> {
 
   Widget _rowTile(ImportTransaksiRow row, int number) => ListTile(
     dense: true, contentPadding: EdgeInsets.zero,
-    leading: CircleAvatar(radius: 15, child: Text(number.toString(), style: const TextStyle(fontSize: 11))),
-    title: Text(row.nomorResi + ' • ' + row.namaPelanggan, maxLines: 1, overflow: TextOverflow.ellipsis),
-    subtitle: Text(row.namaPenerima + ' • ' + row.kotaTujuan + ' • Qty ' + row.quantity.toString() + ' • ' + row.berat.toString() + ' kg'),
+    leading: CircleAvatar(radius: 15, child: Text('$number', style: const TextStyle(fontSize: 11))),
+    title: Text('${row.nomorResi} • ${row.namaPelanggan}', maxLines: 1, overflow: TextOverflow.ellipsis),
+    subtitle: Text('${row.namaPenerima} • ${row.kotaTujuan} • Qty ${row.quantity} • ${row.berat} kg'),
     trailing: Text(Formatter.rupiah(row.jumlah), style: const TextStyle(fontWeight: FontWeight.w700)),
   );
 }
