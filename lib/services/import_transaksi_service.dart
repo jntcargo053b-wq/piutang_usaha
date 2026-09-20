@@ -38,7 +38,7 @@ class ImportTransaksiService {
       }
       final rows = ext == 'csv' ? _parseCsv(file.bytes!) : _parseXlsx(file.bytes!);
       if (rows.length > maxImportRows) {
-        throw FormatException('Jumlah transaksi melebihi batas $maxImportRows baris per import. Pecah file menjadi beberapa bagian.');
+        throw const FormatException('Jumlah transaksi melebihi batas 5.000 baris per import. Pecah file menjadi beberapa bagian.');
       }
       final duplicateErrors = await DbHelper.instance.validateImportRows(rows);
       return ImportPreview(rows: rows, errors: duplicateErrors, fileName: file.name);
