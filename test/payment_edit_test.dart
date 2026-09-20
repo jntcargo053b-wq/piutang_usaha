@@ -29,29 +29,39 @@ void main() {
     if (await file.exists()) await file.delete();
   });
 
-  Future<(int, int, Pembayaran)> fixture({int transactionAmount = 100000, int paymentAmount = 40000}) async {
-    final customerId = await db.insertPelanggan(Pelanggan(nama: 'Pelanggan Edit Pembayaran'));
-    final transactionId = await db.insertTransaksi(TransaksiKredit(
-      pelangganId: customerId,
-      tanggal: DateTime(2026, 8, 1),
-      nomorResi: 'EDIT-1',
-      namaPenerima: 'Penerima',
-      kotaTujuan: 'Jakarta',
-      jumlah: transactionAmount,
-    ));
-    final paymentId = await db.insertPembayaran(Pembayaran(
-      transaksiId: transactionId,
-      tanggal: DateTime(2026, 8, 10),
-      jumlah: paymentAmount,
-      metode: 'cash',
-      keterangan: 'Awal',
-    ));
-    final payment = (await db.getPembayaranByTransaksi(transactionId)).single;
+  Future<(int, int, Pembayaran)> fixture({
+    int transactionAmount = 100000,
+    int paymentAmount = 40000,
+  }) async {
+    final customerId =
+        await db.insertPelanggan(Pelanggan(nama: 'Pelanggan Edit Pembayaran'));
+    final transactionId = await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: customerId,
+        tanggal: DateTime(2026, 8, 1),
+        nomorResi: 'EDIT-1',
+        namaPenerima: 'Penerima',
+        kotaTujuan: 'Jakarta',
+        jumlah: transactionAmount,
+      ),
+    );
+    final paymentId = await db.insertPembayaran(
+      Pembayaran(
+        transaksiId: transactionId,
+        tanggal: DateTime(2026, 8, 10),
+        jumlah: paymentAmount,
+        metode: 'cash',
+        keterangan: 'Awal',
+      ),
+    );
+    final payment =
+        (await db.getPembayaranByTransaksi(transactionId)).single;
     expect(payment.id, paymentId);
     return (customerId, transactionId, payment);
   }
 
-  test('editing payment amount updates transaction balance and keeps identity', () async {
+  test('editing payment amount updates transaction balance and keeps identity',
+      () async {
     final (_, transactionId, payment) = await fixture();
 
     await PaymentService(db: db).updatePayment(
@@ -62,7 +72,8 @@ void main() {
       date: DateTime(2026, 8, 12),
     );
 
-    final updatedPayment = (await db.getPembayaranByTransaksi(transactionId)).single;
+    final updatedPayment =
+        (await db.getPembayaranByTransaksi(transactionId)).single;
     final transaction = (await db.getTransaksiById(transactionId))!;
     expect(updatedPayment.id, payment.id);
     expect(updatedPayment.transaksiId, transactionId);
@@ -74,14 +85,18 @@ void main() {
     expect(transaction.sisa, 40000);
   });
 
-  test('editing payment cannot make total payments exceed transaction amount', () async {
-    final (_, transactionId, payment) = await fixture(transactionAmount: 100000, paymentAmount: 40000);
-    await db.insertPembayaran(Pembayaran(
-      transaksiId: transactionId,
-      tanggal: DateTime(2026, 8, 11),
-      jumlah: 30000,
-      metode: 'transfer',
-    ));
+  test('editing payment cannot make total payments exceed transaction amount',
+      () async {
+    final (_, transactionId, payment) =
+        await fixture(transactionAmount: 100000, paymentAmount: 40000);
+    await db.insertPembayaran(
+      Pembayaran(
+        transaksiId: transactionId,
+        tanggal: DateTime(2026, 8, 11),
+        jumlah: 30000,
+        metode: 'transfer',
+      ),
+    );
 
     await expectLater(
       PaymentService(db: db).updatePayment(
@@ -109,12 +124,14 @@ void main() {
       throwsA(isA<ArgumentError>()),
     );
 
-    final updated = (await db.getPembayaranByTransaksi(transactionId)).single;
+    final updated =
+        (await db.getPembayaranByTransaksi(transactionId)).single;
     expect(updated.jumlah, 40000);
     expect(updated.metode, 'cash');
   });
 
-  test('editing a fully paid payment downward reopens outstanding balance', () async {
+  test('editing a fully paid payment downward reopens outstanding balance',
+      () async {
     final (_, transactionId, payment) = await fixture(paymentAmount: 100000);
 
     await PaymentService(db: db).updatePayment(
@@ -127,5 +144,31 @@ void main() {
     expect(transaction.totalDibayar, 70000);
     expect(transaction.sisa, 30000);
     expect(transaction.lunas, isFalse);
+  });
+
+  test('editing payment without a date keeps the stored payment date', () async {
+    final (_, transactionId, payment) = await fixture();
+
+    final stalePayment = Pembayaran(
+      id: payment.id,
+      transaksiId: payment.transaksiId,
+      tanggal: DateTime(2026, 9, 20),
+      jumlah: payment.jumlah,
+      metode: payment.metode,
+      keterangan: payment.keterangan,
+    );
+
+    await PaymentService(db: db).updatePayment(
+      payment: stalePayment,
+      amount: 45000,
+      method: PaymentService.transfer,
+      note: 'Koreksi tanpa ubah tanggal',
+    );
+
+    final updated =
+        (await db.getPembayaranByTransaksi(transactionId)).single;
+    expect(updated.tanggal, DateTime(2026, 8, 10));
+    expect(updated.jumlah, 45000);
+    expect(updated.metode, PaymentService.transfer);
   });
 }
