@@ -48,11 +48,11 @@ class ImportTransaksiService {
     excel.delete('Sheet1');
     sheet.appendRow(headers.map(TextCellValue.new).toList());
     sheet.appendRow([
-      TextCellValue('PT Contoh Jaya'), TextCellValue('08123456789'),
-      TextCellValue('Alamat pelanggan'), TextCellValue('20/09/2026'),
-      TextCellValue('RESI-001'), TextCellValue('Nama Penerima'),
-      TextCellValue('Malang'), IntCellValue(1), DoubleCellValue(1.5),
-      IntCellValue(25000), TextCellValue('Contoh'),
+      const TextCellValue('PT Contoh Jaya'), const TextCellValue('08123456789'),
+      const TextCellValue('Alamat pelanggan'), const TextCellValue('20/09/2026'),
+      const TextCellValue('RESI-001'), const TextCellValue('Nama Penerima'),
+      const TextCellValue('Malang'), const IntCellValue(1), const DoubleCellValue(1.5),
+      const IntCellValue(25000), const TextCellValue('Contoh'),
     ]);
     final bytes = excel.encode();
     if (bytes == null) throw StateError('Gagal membuat template Excel.');
@@ -64,9 +64,9 @@ class ImportTransaksiService {
 
   static List<ImportTransaksiRow> _parseXlsx(Uint8List bytes) {
     final workbook = Excel.decodeBytes(bytes);
-    if (workbook.tables.isEmpty) throw const FormatException('File Excel tidak memiliki sheet.');
+    if (workbook.tables.isEmpty) { throw const FormatException('File Excel tidak memiliki sheet.'); }
     final sheet = workbook.tables.values.first;
-    if (sheet.rows.isEmpty) throw const FormatException('File kosong.');
+    if (sheet.rows.isEmpty) { throw const FormatException('File kosong.'); }
     final indexes = _headerIndexes(_normalizeHeaders(sheet.rows.first.map(_cellText).toList()));
     _validateHeaders(indexes);
     final result = <ImportTransaksiRow>[];
@@ -132,7 +132,7 @@ class ImportTransaksiService {
     if (value.isEmpty) throw FormatException('Baris $line: tanggal wajib diisi.');
     final iso = DateTime.tryParse(value);
     if (iso != null) return iso;
-    final parts = value.split(RegExp(r'[\\/\\-.]')).map((e) => int.tryParse(e.trim())).toList();
+    final parts = value.split(RegExp(r'[./-]')).map((e) => int.tryParse(e.trim())).toList();
     if (parts.length == 3 && parts.every((e) => e != null)) {
       final a = parts[0]!, b = parts[1]!, c = parts[2]!;
       if (a > 1900) return DateTime(a, b, c);
