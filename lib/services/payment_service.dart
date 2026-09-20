@@ -27,7 +27,6 @@ class PaymentService {
     _validateMethod(method);
     if (transaksi.id == null) throw StateError('Transaksi tidak valid.');
     if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari 0.');
-    if (amount > transaksi.sisa) throw ArgumentError('Pembayaran melebihi sisa tagihan.');
 
     await _db.insertPembayaran(Pembayaran(
       transaksiId: transaksi.id!,
@@ -46,30 +45,65 @@ class PaymentService {
     DateTime? date,
   }) async {
     if (payment.id == null) throw StateError('Pembayaran tidak valid.');
-    if (payment.transaksiId <= 0) throw StateError('Transaksi pembayaran tidak valid.');
+    if (payment.transaksiId <= 0) {
+      throw StateError('Transaksi pembayaran tidak valid.');
+    }
     _validateMethod(method);
-    if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari 0.');
+    if (amount <= 0) {
+      throw ArgumentError('Jumlah pembayaran harus lebih dari 0.');
+    }
 
     await (await _db.database).transaction((txn) async {
-      final existingRows = await txn.query('pembayaran', columns: ['id', 'transaksi_id'], where: 'id = ?', whereArgs: [payment.id], limit: 1);
+      final existingRows = await txn.query(
+        'pembayaran',
+        columns: ['id', 'transaksi_id', 'tanggal'],
+        where: 'id = ?',
+        whereArgs: [payment.id],
+        limit: 1,
+      );
       if (existingRows.isEmpty) throw StateError('Pembayaran tidak ditemukan.');
-      final storedTransactionId = (existingRows.first['transaksi_id'] as num).toInt();
-      if (storedTransactionId != payment.transaksiId) throw StateError('Transaksi pembayaran tidak sesuai.');
+      final storedTransactionId =
+          (existingRows.first['transaksi_id'] as num).toInt();
+      if (storedTransactionId != payment.transaksiId) {
+        throw StateError('Transaksi pembayaran tidak sesuai.');
+      }
 
-      final transactionRows = await txn.rawQuery('SELECT t.*, COALESCE(SUM(p.jumlah), 0) AS total_dibayar FROM transaksi_kredit t LEFT JOIN pembayaran p ON p.transaksi_id = t.id WHERE t.id = ? GROUP BY t.id', [storedTransactionId]);
-      if (transactionRows.isEmpty) throw StateError('Transaksi tidak ditemukan.');
+      final transactionRows = await txn.rawQuery(
+        'SELECT t.*, COALESCE(SUM(p.jumlah), 0) AS total_dibayar '
+        'FROM transaksi_kredit t '
+        'LEFT JOIN pembayaran p ON p.transaksi_id = t.id '
+        'WHERE t.id = ? GROUP BY t.id',
+        [storedTransactionId],
+      );
+      if (transactionRows.isEmpty) {
+        throw StateError('Transaksi tidak ditemukan.');
+      }
       final transaction = TransaksiKredit.fromMap(transactionRows.first);
 
-      final otherRows = await txn.rawQuery('SELECT COALESCE(SUM(jumlah), 0) AS total FROM pembayaran WHERE transaksi_id = ? AND id != ?', [storedTransactionId, payment.id]);
+      final otherRows = await txn.rawQuery(
+        'SELECT COALESCE(SUM(jumlah), 0) AS total '
+        'FROM pembayaran WHERE transaksi_id = ? AND id != ?',
+        [storedTransactionId, payment.id],
+      );
       final otherTotal = (otherRows.first['total'] as num?)?.toInt() ?? 0;
-      if (otherTotal + amount > transaction.jumlah) throw ArgumentError('Jumlah pembayaran melebihi total tagihan.');
+      if (otherTotal + amount > transaction.jumlah) {
+        throw ArgumentError('Jumlah pembayaran melebihi total tagihan.');
+      }
 
-      await txn.update('pembayaran', {
-        'tanggal': (date ?? payment.tanggal).toIso8601String(),
-        'jumlah': amount,
-        'metode': method,
-        'keterangan': note?.trim().isEmpty == true ? null : note?.trim(),
-      }, where: 'id = ?', whereArgs: [payment.id]);
+      final storedDate = DateTime.parse(
+        existingRows.first['tanggal'] as String,
+      );
+      await txn.update(
+        'pembayaran',
+        {
+          'tanggal': (date ?? storedDate).toIso8601String(),
+          'jumlah': amount,
+          'metode': method,
+          'keterangan': note?.trim().isEmpty == true ? null : note?.trim(),
+        },
+        where: 'id = ?',
+        whereArgs: [payment.id],
+      );
     });
   }
 
@@ -85,10 +119,16 @@ class PaymentService {
     _validateMethod(method);
     if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari 0.');
 
-    final outstanding = transactions.where((t) => t.id != null && t.sisa > 0).toList();
-    final totalOutstanding = outstanding.fold<int>(0, (sum, t) => sum + t.sisa);
-    if (totalOutstanding <= 0) throw StateError('Pelanggan tidak memiliki sisa tagihan.');
-    if (amount > totalOutstanding) throw ArgumentError('Pembayaran melebihi total sisa piutang pelanggan.');
+    final outstanding =
+        transactions.where((t) => t.id != null && t.sisa > 0).toList();
+    final totalOutstanding =
+        outstanding.fold<int>(0, (sum, t) => sum + t.sisa);
+    if (totalOutstanding <= 0) {
+      throw StateError('Pelanggan tidak memiliki sisa tagihan.');
+    }
+    if (amount > totalOutstanding) {
+      throw ArgumentError('Pembayaran melebihi total sisa piutang pelanggan.');
+    }
 
     final paymentDate = date ?? DateTime.now();
     final cleanNote = note?.trim();
@@ -100,13 +140,16 @@ class PaymentService {
       for (final transaksi in outstanding) {
         if (remaining == 0) break;
         final portion = remaining < transaksi.sisa ? remaining : transaksi.sisa;
-        await _db.insertPembayaranInTransaction(txn, Pembayaran(
-          transaksiId: transaksi.id!,
-          tanggal: paymentDate,
-          jumlah: portion,
-          metode: method,
-          keterangan: cleanNote?.isEmpty == true ? null : cleanNote,
-        ));
+        await _db.insertPembayaranInTransaction(
+          txn,
+          Pembayaran(
+            transaksiId: transaksi.id!,
+            tanggal: paymentDate,
+            jumlah: portion,
+            metode: method,
+            keterangan: cleanNote?.isEmpty == true ? null : cleanNote,
+          ),
+        );
         remaining -= portion;
         allocated += portion;
       }
