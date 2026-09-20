@@ -340,6 +340,48 @@ void main() {
   });
 
 
+  test('bulk import preflight detects duplicate resi before import', () async {
+    final cid = await customer();
+    await transaction(cid, resi: 'PRE-1');
+
+    final errors = await db.validateImportRows([
+      ImportTransaksiRow(
+        namaPelanggan: 'Pelanggan Test',
+        tanggal: DateTime(2026, 9, 10),
+        nomorResi: 'PRE-1',
+        namaPenerima: 'Penerima',
+        kotaTujuan: 'Malang',
+        quantity: 1,
+        berat: 1,
+        jumlah: 10000,
+      ),
+      ImportTransaksiRow(
+        namaPelanggan: 'Pelanggan Baru',
+        tanggal: DateTime(2026, 9, 11),
+        nomorResi: 'PRE-2',
+        namaPenerima: 'Penerima',
+        kotaTujuan: 'Malang',
+        quantity: 1,
+        berat: 1,
+        jumlah: 10000,
+      ),
+      ImportTransaksiRow(
+        namaPelanggan: 'Pelanggan Baru',
+        tanggal: DateTime(2026, 9, 12),
+        nomorResi: 'PRE-2',
+        namaPenerima: 'Penerima',
+        kotaTujuan: 'Malang',
+        quantity: 1,
+        berat: 1,
+        jumlah: 10000,
+      ),
+    ]);
+
+    expect(errors, hasLength(2));
+    expect(errors.any((e) => e.contains('PRE-1') && e.contains('database')), isTrue);
+    expect(errors.any((e) => e.contains('PRE-2') && e.contains('duplikat')), isTrue);
+  });
+
   test('bulk import creates missing customers and imports atomically', () async {
     final count = await db.importTransaksiBatch([
       ImportTransaksiRow(namaPelanggan: 'Import Satu', tanggal: DateTime(2026, 9, 1), nomorResi: 'IMP-1', namaPenerima: 'Penerima 1', kotaTujuan: 'Malang', quantity: 2, berat: 1.5, jumlah: 25000),
