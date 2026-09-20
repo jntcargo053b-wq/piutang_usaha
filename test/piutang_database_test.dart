@@ -370,6 +370,61 @@ void main() {
     expect(await db.getPembayaranByTransaksi(tid), isEmpty);
   });
 
+  test('deleting transaction cascades its payments and updates customer balance', () async {
+    final cid = await customer();
+    final tid1 = await transaction(cid, amount: 100000, resi: 'DEL-1');
+    final tid2 = await transaction(cid, amount: 50000, resi: 'DEL-2');
+    await payment(tid1, 30000);
+    await payment(tid2, 20000);
+
+    expect(await db.getSisaPiutangPelanggan(cid), 100000);
+
+    expect(await db.deleteTransaksi(tid1), 1);
+
+    expect(await db.getTransaksiById(tid1), isNull);
+    expect(await db.getPembayaranByTransaksi(tid1), isEmpty);
+    expect(await db.getSisaPiutangPelanggan(cid), 30000);
+
+    final remaining = await db.getTransaksiByPelanggan(cid);
+    expect(remaining, hasLength(1));
+    expect(remaining.single.id, tid2);
+    expect(remaining.single.totalDibayar, 20000);
+    expect(remaining.single.sisa, 30000);
+  });
+
+  test('deleting payment restores outstanding balance and removes only that payment', () async {
+    final cid = await customer();
+    final tid = await transaction(cid, amount: 100000);
+    final firstId = await db.insertPembayaran(
+      Pembayaran(
+        transaksiId: tid,
+        tanggal: DateTime(2026, 8, 10),
+        jumlah: 30000,
+        metode: 'cash',
+      ),
+    );
+    final secondId = await db.insertPembayaran(
+      Pembayaran(
+        transaksiId: tid,
+        tanggal: DateTime(2026, 8, 11),
+        jumlah: 20000,
+        metode: 'transfer',
+      ),
+    );
+
+    expect((await db.getTransaksiById(tid))!.sisa, 50000);
+    expect(await db.deletePembayaran(firstId), 1);
+
+    final current = (await db.getTransaksiById(tid))!;
+    expect(current.totalDibayar, 20000);
+    expect(current.sisa, 80000);
+
+    final history = await db.getPembayaranByTransaksi(tid);
+    expect(history, hasLength(1));
+    expect(history.single.id, secondId);
+    expect(history.single.jumlah, 20000);
+  });
+
   test('dashboard, customer detail, and reports stay numerically consistent', () async {
     final cid = await customer('Konsisten Test');
     final tid1 = await transaction(cid, amount: 100000, resi: 'CONS-1');
