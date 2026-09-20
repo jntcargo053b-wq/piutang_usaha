@@ -125,6 +125,38 @@ class DbHelper {
     return db.insert('transaksi_kredit', data);
   }
 
+  Future<List<String>> validateImportRows(List<ImportTransaksiRow> rows) async {
+    if (rows.isEmpty) return const [];
+    final db = await database;
+    final errors = <String>[];
+    final seen = <String>{};
+    for (var i = 0; i < rows.length; i++) {
+      final line = i + 2;
+      final resi = rows[i].nomorResi.trim();
+      final key = resi.toLowerCase();
+      if (resi.isEmpty) {
+        errors.add('Baris $line: nomor resi wajib diisi.');
+        continue;
+      }
+      if (!seen.add(key)) {
+        errors.add('Baris $line: nomor resi $resi duplikat di file import.');
+        continue;
+      }
+      final existing = await db.query(
+        'transaksi_kredit',
+        columns: ['id'],
+        where: 'LOWER(nomor_resi) = ?',
+        whereArgs: [key],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        errors.add('Baris $line: nomor resi $resi sudah ada di database.');
+      }
+      if (errors.length >= 20) break;
+    }
+    return errors;
+  }
+
   Future<int> importTransaksiBatch(List<ImportTransaksiRow> rows) async {
     if (rows.isEmpty) return 0;
     final db = await database;
