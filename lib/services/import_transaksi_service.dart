@@ -140,8 +140,13 @@ class ImportTransaksiService {
     final parts = value.split(RegExp(r'[./-]')).map((e) => int.tryParse(e.trim())).toList();
     if (parts.length == 3 && parts.every((e) => e != null)) {
       final a = parts[0]!, b = parts[1]!, c = parts[2]!;
-      if (a > 1900) return DateTime(a, b, c);
-      if (c > 1900) return DateTime(c, b, a);
+      final year = a > 1900 ? a : c;
+      final month = b;
+      final day = a > 1900 ? c : a;
+      final date = DateTime(year, month, day);
+      if (date.year == year && date.month == month && date.day == day) {
+        return date;
+      }
     }
     final serial = double.tryParse(value);
     if (serial != null && serial > 1 && serial < 100000) return DateTime(1899, 12, 30).add(Duration(days: serial.floor()));
@@ -149,7 +154,7 @@ class ImportTransaksiService {
   }
 
   static int _parseInt(String raw, int line, String field) {
-    var value = raw.trim().replaceAll(RegExp(r'(?i)rp'), '').replaceAll(' ', '');
+    var value = raw.trim().replaceAll(RegExp(r'rp', caseSensitive: false), '').replaceAll(' ', '');
     if (value.isEmpty) {
       throw FormatException('Baris $line: $field tidak valid.');
     }
@@ -184,7 +189,7 @@ class ImportTransaksiService {
   }
 
   static double _parseDouble(String raw, int line, String field) {
-    var value = raw.trim().replaceAll(RegExp(r'(?i)rp'), '').replaceAll(' ', '');
+    var value = raw.trim().replaceAll(RegExp(r'rp', caseSensitive: false), '').replaceAll(' ', '');
     if (value.isEmpty) {
       throw FormatException('Baris $line: $field tidak valid.');
     }
