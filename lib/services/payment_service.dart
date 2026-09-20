@@ -131,10 +131,17 @@ class PaymentService {
           .toSet()
           .toList(growable: false);
       final current = <TransaksiKredit>[];
+      int? customerId;
       for (final id in ids) {
         final transaksi = await _db.getTransaksiByIdInTransaction(txn, id);
         if (transaksi == null) {
           throw ValidasiException('Transaksi pembayaran tidak ditemukan.');
+        }
+        customerId ??= transaksi.pelangganId;
+        if (transaksi.pelangganId != customerId) {
+          throw ValidasiException(
+            'Semua transaksi pembayaran harus milik pelanggan yang sama.',
+          );
         }
         if (transaksi.sisa > 0) current.add(transaksi);
       }
