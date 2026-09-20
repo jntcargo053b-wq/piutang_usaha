@@ -51,8 +51,8 @@ class ImportTransaksiService {
       TextCellValue('PT Contoh Jaya'), TextCellValue('08123456789'),
       TextCellValue('Alamat pelanggan'), TextCellValue('20/09/2026'),
       TextCellValue('RESI-001'), TextCellValue('Nama Penerima'),
-      TextCellValue('Malang'), IntCellValue(1), DoubleCellValue(1.5),
-      IntCellValue(25000), TextCellValue('Contoh'),
+      TextCellValue('Malang'), const IntCellValue(1), const DoubleCellValue(1.5),
+      const IntCellValue(25000), TextCellValue('Contoh'),
     ]);
     final bytes = excel.encode();
     if (bytes == null) throw StateError('Gagal membuat template Excel.');
@@ -176,7 +176,9 @@ class ImportTransaksiService {
 
   static Map<String, int> _headerIndexes(List<String> headers) {
     final map = <String, int>{};
-    for (var i = 0; i < headers.length; i++) map[headers[i]] = i;
+    for (var i = 0; i < headers.length; i++) {
+      map[headers[i]] = i;
+    }
     return map;
   }
 
