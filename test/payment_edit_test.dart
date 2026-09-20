@@ -171,6 +171,52 @@ void main() {
     expect(updated.jumlah, 45000);
     expect(updated.metode, PaymentService.transfer);
   });
+  test('customer payment rejects transactions from different customers atomically', () async {
+    final firstCustomer = await db.insertPelanggan(
+      Pelanggan(nama: 'Pelanggan A'),
+    );
+    final secondCustomer = await db.insertPelanggan(
+      Pelanggan(nama: 'Pelanggan B'),
+    );
+    final firstTransaction = await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: firstCustomer,
+        tanggal: DateTime(2026, 8, 1),
+        nomorResi: 'MIX-1',
+        namaPenerima: 'Penerima A',
+        kotaTujuan: 'Jakarta',
+        jumlah: 100000,
+      ),
+    );
+    final secondTransaction = await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: secondCustomer,
+        tanggal: DateTime(2026, 8, 2),
+        nomorResi: 'MIX-2',
+        namaPenerima: 'Penerima B',
+        kotaTujuan: 'Bandung',
+        jumlah: 100000,
+      ),
+    );
+
+    await expectLater(
+      PaymentService(db: db).payCustomer(
+        transactions: [
+          (await db.getTransaksiById(firstTransaction))!,
+          (await db.getTransaksiById(secondTransaction))!,
+        ],
+        amount: 150000,
+        method: PaymentService.cash,
+      ),
+      throwsA(isA<ValidasiException>()),
+    );
+
+    expect(await db.getPembayaranByTransaksi(firstTransaction), isEmpty);
+    expect(await db.getPembayaranByTransaksi(secondTransaction), isEmpty);
+    expect((await db.getTransaksiById(firstTransaction))!.sisa, 100000);
+    expect((await db.getTransaksiById(secondTransaction))!.sisa, 100000);
+  });
+
   test('customer payment reloads balances when supplied transactions are stale', () async {
     final (customerId, transactionId, payment) = await fixture();
     final staleTransaction = (await db.getTransaksiById(transactionId))!;
