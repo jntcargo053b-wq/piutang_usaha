@@ -121,7 +121,21 @@ class DbHelper {
     final db = await database;
     final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
+    final nomorResi = t.nomorResi.trim();
+    final duplicate = await db.query(
+      'transaksi_kredit',
+      columns: ['id'],
+      where: 'LOWER(nomor_resi) = ?',
+      whereArgs: [nomorResi.toLowerCase()],
+      limit: 1,
+    );
+    if (duplicate.isNotEmpty) {
+      throw ValidasiException('Nomor resi $nomorResi sudah digunakan oleh transaksi lain.');
+    }
     final data = t.toMap()..remove('id');
+    data['nomor_resi'] = nomorResi;
+    data['nama_penerima'] = t.namaPenerima.trim();
+    data['kota_tujuan'] = t.kotaTujuan.trim();
     return db.insert('transaksi_kredit', data);
   }
 
@@ -228,10 +242,24 @@ class DbHelper {
     if (existingCustomerId == null || existingCustomerId != t.pelangganId) throw ValidasiException('Pelanggan transaksi tidak boleh diubah saat edit.');
     final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
+    final nomorResi = t.nomorResi.trim();
+    final duplicate = await db.query(
+      'transaksi_kredit',
+      columns: ['id'],
+      where: 'LOWER(nomor_resi) = ? AND id != ?',
+      whereArgs: [nomorResi.toLowerCase(), t.id],
+      limit: 1,
+    );
+    if (duplicate.isNotEmpty) {
+      throw ValidasiException('Nomor resi $nomorResi sudah digunakan oleh transaksi lain.');
+    }
     final paidRow = await db.rawQuery('SELECT COALESCE(SUM(jumlah), 0) AS total_dibayar FROM pembayaran WHERE transaksi_id = ?', [t.id]);
     final totalDibayar = (paidRow.first['total_dibayar'] as num?)?.toInt() ?? 0;
     if (t.jumlah < totalDibayar) throw ValidasiException('Jumlah transaksi tidak boleh lebih kecil dari total pembayaran yang sudah masuk (Rp $totalDibayar).');
     final data = t.toMap()..remove('id');
+    data['nomor_resi'] = nomorResi;
+    data['nama_penerima'] = t.namaPenerima.trim();
+    data['kota_tujuan'] = t.kotaTujuan.trim();
     return db.update('transaksi_kredit', data, where: 'id = ?', whereArgs: [t.id]);
   }
 
