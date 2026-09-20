@@ -32,8 +32,12 @@ class ImportTransaksiService {
     final file = result.files.single;
     try {
       final ext = (file.extension ?? '').toLowerCase();
+      if (ext != 'csv' && ext != 'xlsx') {
+        throw const FormatException('Format file tidak didukung. Gunakan XLSX atau CSV.');
+      }
       final rows = ext == 'csv' ? _parseCsv(file.bytes!) : _parseXlsx(file.bytes!);
-      return ImportPreview(rows: rows, errors: const [], fileName: file.name);
+      final duplicateErrors = await DbHelper.instance.validateImportRows(rows);
+      return ImportPreview(rows: rows, errors: duplicateErrors, fileName: file.name);
     } catch (e) {
       return ImportPreview(rows: const [], errors: [e.toString().replaceFirst('Exception: ', '')], fileName: file.name);
     }
