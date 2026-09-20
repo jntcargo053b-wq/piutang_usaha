@@ -370,6 +370,53 @@ void main() {
     expect(await db.getPembayaranByTransaksi(tid), isEmpty);
   });
 
+  test('dashboard, customer detail, and reports stay numerically consistent', () async {
+    final cid = await customer('Konsisten Test');
+    final tid1 = await transaction(cid, amount: 100000, resi: 'CONS-1');
+    final tid2 = await transaction(cid, amount: 50000, resi: 'CONS-2');
+
+    await db.insertPembayaran(Pembayaran(
+      transaksiId: tid1,
+      tanggal: DateTime(2026, 9, 5),
+      jumlah: 30000,
+      metode: 'cash',
+    ));
+    await db.insertPembayaran(Pembayaran(
+      transaksiId: tid2,
+      tanggal: DateTime(2026, 9, 6),
+      jumlah: 50000,
+      metode: 'transfer',
+    ));
+
+    final summary = await db.getRingkasanTotal();
+    expect(summary['total_kredit'], 150000);
+    expect(summary['total_dibayar'], 80000);
+    expect(summary['sisa_piutang'], 70000);
+
+    expect(await db.getSisaPiutangPelanggan(cid), 70000);
+
+    final customerRows = await db.getTransaksiByPelanggan(cid);
+    expect(customerRows.fold<int>(0, (sum, row) => sum + row.jumlah), 150000);
+    expect(customerRows.fold<int>(0, (sum, row) => sum + row.totalDibayar), 80000);
+    expect(customerRows.fold<int>(0, (sum, row) => sum + row.sisa), 70000);
+
+    final rekap = await db.getRekapPeriode(
+      dari: DateTime(2026, 9, 1),
+      sampai: DateTime(2026, 9, 30),
+    );
+    expect(rekap, hasLength(2));
+    expect(rekap.fold<int>(0, (sum, row) => sum + (row['jumlah'] as num).toInt()), 150000);
+    expect(rekap.fold<int>(0, (sum, row) => sum + (row['total_dibayar'] as num).toInt()), 80000);
+    expect(rekap.fold<int>(0, (sum, row) => sum + (row['dibayar_periode'] as num).toInt()), 80000);
+
+    final payments = await db.getPembayaranPeriode(
+      dari: DateTime(2026, 9, 1),
+      sampai: DateTime(2026, 9, 30),
+    );
+    expect(payments, hasLength(2));
+    expect(payments.fold<int>(0, (sum, row) => sum + (row['jumlah'] as num).toInt()), 80000);
+  });
+
   test('aging places outstanding balance in correct bucket', () async {
     final cid = await customer();
     await db.insertTransaksi(
