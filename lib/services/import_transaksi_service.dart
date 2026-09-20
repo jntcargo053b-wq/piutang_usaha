@@ -91,7 +91,8 @@ class ImportTransaksiService {
 
   static List<ImportTransaksiRow> _parseCsv(Uint8List bytes) {
     final text = utf8.decode(bytes, allowMalformed: true).replaceFirst('\uFEFF', '');
-    final lines = _csvRecords(text);
+    final delimiter = _detectCsvDelimiter(text);
+    final lines = _csvRecords(text, delimiter);
     if (lines.isEmpty) throw const FormatException('File CSV kosong.');
     final indexes = _headerIndexes(_normalizeHeaders(lines.first));
     _validateHeaders(indexes);
@@ -148,20 +149,59 @@ class ImportTransaksiService {
   }
 
   static int _parseInt(String raw, int line, String field) {
-    final cleaned = raw.trim().replaceAll(RegExp(r'[^0-9-]'), '');
-    final value = int.tryParse(cleaned);
-    if (value == null) {
+    var value = raw.trim().replaceAll(RegExp(r'(?i)rp'), '').replaceAll(' ', '');
+    if (value.isEmpty) {
       throw FormatException('Baris $line: $field tidak valid.');
     }
-    return value;
+    final negative = value.startsWith('-');
+    value = value.replaceAll('-', '');
+    if (value.contains(',') && value.contains('.')) {
+      final lastComma = value.lastIndexOf(',');
+      final lastDot = value.lastIndexOf('.');
+      final decimalIndex = lastComma > lastDot ? lastComma : lastDot;
+      final decimals = value.substring(decimalIndex + 1);
+      if (decimals.isNotEmpty && int.tryParse(decimals) != 0) {
+        throw FormatException('Baris $line: $field harus berupa bilangan bulat.');
+      }
+      value = value.substring(0, decimalIndex).replaceAll('.', '').replaceAll(',', '');
+    } else if (value.contains('.') || value.contains(',')) {
+      final separator = value.contains('.') ? '.' : ',';
+      final parts = value.split(separator);
+      if (parts.length != 2 || parts[1].length != 3) {
+        final parsed = double.tryParse(value.replaceAll(',', '.'));
+        if (parsed == null || parsed % 1 != 0) {
+          throw FormatException('Baris $line: $field harus berupa bilangan bulat.');
+        }
+        return negative ? -parsed.toInt() : parsed.toInt();
+      }
+      value = parts.join();
+    }
+    final parsed = int.tryParse(value);
+    if (parsed == null) {
+      throw FormatException('Baris $line: $field tidak valid.');
+    }
+    return negative ? -parsed : parsed;
   }
 
   static double _parseDouble(String raw, int line, String field) {
-    final value = double.tryParse(raw.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^0-9.-]'), ''));
-    if (value == null) {
+    var value = raw.trim().replaceAll(RegExp(r'(?i)rp'), '').replaceAll(' ', '');
+    if (value.isEmpty) {
       throw FormatException('Baris $line: $field tidak valid.');
     }
-    return value;
+    if (value.contains(',') && value.contains('.')) {
+      final lastComma = value.lastIndexOf(',');
+      final lastDot = value.lastIndexOf('.');
+      final decimalSeparator = lastComma > lastDot ? ',' : '.';
+      final thousandsSeparator = decimalSeparator == ',' ? '.' : ',';
+      value = value.replaceAll(thousandsSeparator, '').replaceAll(decimalSeparator, '.');
+    } else if (value.contains(',')) {
+      value = value.replaceAll(',', '.');
+    }
+    final parsed = double.tryParse(value.replaceAll(RegExp(r'[^0-9.-]'), ''));
+    if (parsed == null || !parsed.isFinite) {
+      throw FormatException('Baris $line: $field tidak valid.');
+    }
+    return parsed;
   }
 
   static String _cellText(dynamic cell) {
@@ -190,7 +230,14 @@ class ImportTransaksiService {
     }
   }
 
-  static List<List<String>> _csvRecords(String text) {
+  static String _detectCsvDelimiter(String text) {
+    final firstLine = text.split(RegExp(r'[\r\n]')).first;
+    final commaCount = firstLine.split(',').length - 1;
+    final semicolonCount = firstLine.split(';').length - 1;
+    return semicolonCount > commaCount ? ';' : ',';
+  }
+
+  static List<List<String>> _csvRecords(String text, String delimiter) {
     final records = <List<String>>[];
     var row = <String>[];
     var field = StringBuffer();
@@ -204,7 +251,7 @@ class ImportTransaksiService {
         } else {
           quoted = !quoted;
         }
-      } else if (ch == ',' && !quoted) {
+      } else if (ch == delimiter && !quoted) {
         row.add(field.toString());
         field = StringBuffer();
       } else if ((ch == '\n' || ch == '\r') && !quoted) {
