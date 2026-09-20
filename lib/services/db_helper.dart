@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import '../models/pelanggan.dart';
 import '../models/transaksi_kredit.dart';
 import '../models/pembayaran.dart';
+import '../models/import_transaksi_row.dart';
 
 class ValidasiException implements Exception {
   final String message;
@@ -122,6 +123,68 @@ class DbHelper {
     if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
     final data = t.toMap()..remove('id');
     return db.insert('transaksi_kredit', data);
+  }
+
+  Future<int> importTransaksiBatch(List<ImportTransaksiRow> rows) async {
+    if (rows.isEmpty) return 0;
+    final db = await database;
+    return db.transaction<int>((txn) async {
+      final customerCache = <String, int>{};
+      final resiCache = <String>{};
+      var inserted = 0;
+      for (var i = 0; i < rows.length; i++) {
+        final row = rows[i];
+        final line = i + 2;
+        final nama = row.namaPelanggan.trim();
+        final resi = row.nomorResi.trim();
+        final penerima = row.namaPenerima.trim();
+        final kota = row.kotaTujuan.trim();
+        if (nama.isEmpty || resi.isEmpty || penerima.isEmpty || kota.isEmpty) {
+          throw ValidasiException('Baris $line: nama pelanggan, nomor resi, penerima, dan kota tujuan wajib diisi.');
+        }
+        if (row.jumlah <= 0 || row.quantity <= 0 || row.berat < 0) {
+          throw ValidasiException('Baris $line: jumlah/quantity/berat tidak valid.');
+        }
+        final key = nama.toLowerCase();
+        var customerId = customerCache[key];
+        if (customerId == null) {
+          final found = await txn.query('pelanggan', columns: ['id'], where: 'LOWER(nama) = ?', whereArgs: [key], limit: 1);
+          if (found.isNotEmpty) {
+            customerId = (found.first['id'] as num).toInt();
+          } else {
+            customerId = await txn.insert('pelanggan', {
+              'nama': nama,
+              'no_hp': row.noHp?.trim().isEmpty == true ? null : row.noHp?.trim(),
+              'alamat': row.alamat?.trim().isEmpty == true ? null : row.alamat?.trim(),
+              'created_at': DateTime.now().toIso8601String(),
+            });
+          }
+          customerCache[key] = customerId;
+        }
+        final normalizedResi = resi.toLowerCase();
+        if (resiCache.contains(normalizedResi)) {
+          throw ValidasiException('Baris $line: nomor resi $resi duplikat di file import.');
+        }
+        final existing = await txn.query('transaksi_kredit', columns: ['id'], where: 'LOWER(nomor_resi) = ?', whereArgs: [normalizedResi], limit: 1);
+        if (existing.isNotEmpty) {
+          throw ValidasiException('Baris $line: nomor resi $resi sudah ada di database.');
+        }
+        resiCache.add(normalizedResi);
+        await txn.insert('transaksi_kredit', {
+          'pelanggan_id': customerId,
+          'tanggal': row.tanggal.toIso8601String(),
+          'nomor_resi': resi,
+          'nama_penerima': penerima,
+          'kota_tujuan': kota,
+          'deskripsi': row.catatan?.trim() ?? '',
+          'jumlah': row.jumlah,
+          'berat': row.berat,
+          'quantity': row.quantity,
+        });
+        inserted++;
+      }
+      return inserted;
+    });
   }
 
   Future<int> updateTransaksi(TransaksiKredit t) async {
