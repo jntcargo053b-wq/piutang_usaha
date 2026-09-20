@@ -5,6 +5,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:piutang_usaha/models/pelanggan.dart';
 import 'package:piutang_usaha/models/transaksi_kredit.dart';
 import 'package:piutang_usaha/models/pembayaran.dart';
+import 'package:piutang_usaha/models/import_transaksi_row.dart';
 import 'package:piutang_usaha/services/db_helper.dart';
 import 'package:piutang_usaha/services/payment_service.dart';
 
@@ -336,5 +337,27 @@ void main() {
     expect(aging['31_60'], 20000);
     expect(aging['61_90'], 30000);
     expect(aging['91_plus'], 40000);
+  });
+
+
+  test('bulk import creates missing customers and imports atomically', () async {
+    final count = await db.importTransaksiBatch([
+      ImportTransaksiRow(namaPelanggan: 'Import Satu', tanggal: DateTime(2026, 9, 1), nomorResi: 'IMP-1', namaPenerima: 'Penerima 1', kotaTujuan: 'Malang', quantity: 2, berat: 1.5, jumlah: 25000),
+      ImportTransaksiRow(namaPelanggan: 'Import Dua', tanggal: DateTime(2026, 9, 2), nomorResi: 'IMP-2', namaPenerima: 'Penerima 2', kotaTujuan: 'Surabaya', quantity: 1, berat: 2, jumlah: 30000),
+    ]);
+    expect(count, 2);
+    expect(await db.getAllPelanggan(), hasLength(2));
+    expect((await db.getTransaksiByPelanggan(1)), hasLength(1));
+    expect((await db.getTransaksiByPelanggan(2)), hasLength(1));
+
+    await expectLater(
+      db.importTransaksiBatch([
+        ImportTransaksiRow(namaPelanggan: 'Import Tiga', tanggal: DateTime(2026, 9, 3), nomorResi: 'IMP-3', namaPenerima: 'Penerima 3', kotaTujuan: 'Jakarta', quantity: 1, berat: 1, jumlah: 10000),
+        ImportTransaksiRow(namaPelanggan: 'Import Empat', tanggal: DateTime(2026, 9, 4), nomorResi: 'IMP-1', namaPenerima: 'Penerima 4', kotaTujuan: 'Jakarta', quantity: 1, berat: 1, jumlah: 10000),
+      ]),
+      throwsA(isA<ValidasiException>()),
+    );
+    expect((await db.getTransaksiByPelanggan(1)), hasLength(1));
+    expect(await db.getAllPelanggan(), hasLength(2));
   });
 }
