@@ -171,4 +171,25 @@ void main() {
     expect(updated.jumlah, 45000);
     expect(updated.metode, PaymentService.transfer);
   });
+  test('customer payment reloads balances when supplied transactions are stale', () async {
+    final (customerId, transactionId, payment) = await fixture();
+    final staleTransaction = (await db.getTransaksiById(transactionId))!;
+    expect(staleTransaction.sisa, 60000);
+
+    await db.deletePembayaran(payment.id!);
+    expect((await db.getTransaksiById(transactionId))!.sisa, 100000);
+
+    final allocated = await PaymentService(db: db).payCustomer(
+      transactions: [staleTransaction],
+      amount: 80000,
+      method: PaymentService.transfer,
+    );
+
+    expect(allocated, 80000);
+    final current = (await db.getTransaksiById(transactionId))!;
+    expect(current.totalDibayar, 80000);
+    expect(current.sisa, 20000);
+    expect(current.pelangganId, customerId);
+  });
+
 }
