@@ -19,6 +19,7 @@ class ImportResult {
 }
 
 class ImportTransaksiService {
+  static const maxImportRows = 5000;
   static const headers = <String>[
     'nama_pelanggan','no_hp','alamat','tanggal','nomor_resi',
     'nama_penerima','kota_tujuan','quantity','berat','jumlah','catatan',
@@ -36,6 +37,9 @@ class ImportTransaksiService {
         throw const FormatException('Format file tidak didukung. Gunakan XLSX atau CSV.');
       }
       final rows = ext == 'csv' ? _parseCsv(file.bytes!) : _parseXlsx(file.bytes!);
+      if (rows.length > maxImportRows) {
+        throw FormatException('Jumlah transaksi melebihi batas $maxImportRows baris per import. Pecah file menjadi beberapa bagian.');
+      }
       final duplicateErrors = await DbHelper.instance.validateImportRows(rows);
       return ImportPreview(rows: rows, errors: duplicateErrors, fileName: file.name);
     } catch (e) {
