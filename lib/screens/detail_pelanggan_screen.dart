@@ -163,7 +163,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
           TextFormField(controller: jumlah, keyboardType: TextInputType.number, textInputAction: TextInputAction.next, inputFormatters: const [RupiahInputFormatter()], decoration: const InputDecoration(labelText: 'Jumlah *', prefixText: 'Rp ', border: OutlineInputBorder()), validator: (value) {
             final n = int.tryParse((value ?? '').replaceAll('.', '').trim());
             if (n == null || n <= 0) return 'Jumlah tidak valid';
-            if (isEdit && n < existing.totalDibayar) return 'Jumlah tidak boleh lebih kecil dari total pembayaran (${existing.totalDibayar}).';
+            // Final paid-total validation is performed atomically by DbHelper using current DB data.
             return null;
           }),
           const SizedBox(height: 16),
