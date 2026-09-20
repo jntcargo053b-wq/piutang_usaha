@@ -272,6 +272,9 @@ class DbHelper {
 
   Future<TransaksiKredit?> getTransaksiById(int id) async => _getTransaksiByIdDb(await database, id);
 
+  Future<TransaksiKredit?> getTransaksiByIdInTransaction(DatabaseExecutor txn, int id) =>
+      _getTransaksiByIdDb(txn, id);
+
   Future<TransaksiKredit?> _getTransaksiByIdDb(DatabaseExecutor db, int id) async {
     final rows = await db.rawQuery('''SELECT t.*,COALESCE(SUM(p.jumlah),0) AS total_dibayar FROM transaksi_kredit t LEFT JOIN pembayaran p ON p.transaksi_id=t.id WHERE t.id=? GROUP BY t.id''', [id]);
     return rows.isEmpty ? null : TransaksiKredit.fromMap(rows.first);
