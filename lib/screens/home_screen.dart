@@ -5,6 +5,7 @@ import '../utils/formatter.dart';
 import 'pelanggan_screen.dart';
 import 'laporan_screen.dart';
 import 'backup_restore_screen.dart';
+import 'import_transaksi_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -126,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _quickAction(context, Icons.receipt_long_outlined, 'Transaksi', 'Lihat transaksi', () => _open(const PelangganScreen())),
                       _quickAction(context, Icons.bar_chart_outlined, 'Laporan', 'Ringkasan bisnis', () => _open(const LaporanScreen())),
                       _quickAction(context, Icons.backup_outlined, 'Backup & Restore', 'Amankan / pulihkan data', _backup),
+                      _quickAction(context, Icons.upload_file_outlined, 'Import Data', 'Excel / CSV transaksi', () => _open(const ImportTransaksiScreen())),
                     ],
                   ),
                   const SizedBox(height: 26),
