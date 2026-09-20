@@ -117,6 +117,8 @@ class _ImportTransaksiScreenState extends State<ImportTransaksiScreen> {
             Text('nama_pelanggan, no_hp, alamat, tanggal, nomor_resi, nama_penerima, kota_tujuan, quantity, berat, jumlah, catatan'),
             SizedBox(height: 8),
             Text('Tanggal: YYYY-MM-DD atau DD/MM/YYYY. Jumlah dalam Rupiah, berat dalam kg.'),
+            SizedBox(height: 8),
+            Text('Pelanggan yang sudah ada tidak diubah. Data no HP dan alamat pada file hanya digunakan saat membuat pelanggan baru. Maksimal 5.000 transaksi per file.'),
           ]))),
         ],
       ),
