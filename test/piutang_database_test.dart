@@ -261,15 +261,17 @@ void main() {
 
     final updated = await db.getPembayaranByTransaksi(tid);
     expect(updated, hasLength(2));
-    expect(updated[0].jumlah, 40000);
-    expect(updated[0].metode, PaymentService.transfer);
-    expect(updated[0].keterangan, 'Koreksi');
-    expect(updated[0].tanggal, DateTime(2026, 8, 12));
-    expect(updated[1].jumlah, 20000);
+    final edited = updated.firstWhere((item) => item.id == history[0].id);
+    final untouched = updated.firstWhere((item) => item.id == history[1].id);
+    expect(edited.jumlah, 40000);
+    expect(edited.metode, PaymentService.transfer);
+    expect(edited.keterangan, 'Koreksi');
+    expect(edited.tanggal, DateTime(2026, 8, 12));
+    expect(untouched.jumlah, 20000);
 
     await expectLater(
       PaymentService(db: db).updatePayment(
-        payment: updated[0],
+        payment: edited,
         amount: 90000,
         method: PaymentService.cash,
       ),
@@ -277,10 +279,12 @@ void main() {
     );
 
     final unchanged = await db.getPembayaranByTransaksi(tid);
-    expect(unchanged[0].jumlah, 40000);
-    expect(unchanged[0].metode, PaymentService.transfer);
-    expect(unchanged[0].keterangan, 'Koreksi');
-    expect(unchanged[1].jumlah, 20000);
+    final unchangedEdited = unchanged.firstWhere((item) => item.id == history[0].id);
+    final unchangedOther = unchanged.firstWhere((item) => item.id == history[1].id);
+    expect(unchangedEdited.jumlah, 40000);
+    expect(unchangedEdited.metode, PaymentService.transfer);
+    expect(unchangedEdited.keterangan, 'Koreksi');
+    expect(unchangedOther.jumlah, 20000);
     expect((await db.getTransaksiById(tid))!.sisa, 40000);
   });
 
