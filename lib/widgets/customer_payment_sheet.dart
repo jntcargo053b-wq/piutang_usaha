@@ -47,7 +47,8 @@ class _CustomerPaymentSheetState extends State<CustomerPaymentSheet> {
   Future<void> _submit() async {
     final amount = int.tryParse(_amount.text.replaceAll('.', '').replaceAll(',', '').trim());
     if (amount == null || amount <= 0) { _error('Masukkan jumlah pembayaran yang valid.'); return; }
-    if (amount > _totalOutstanding) { _error('Pembayaran melebihi total sisa piutang.'); return; }
+    // Do not trust the displayed balance: it may be stale after another edit/payment.
+    // PaymentService reloads authoritative balances inside the DB transaction.
     setState(() => _saving = true);
     try {
       await _service.payCustomer(transactions: _outstanding, amount: amount, method: _method, note: _note.text, date: _date);
