@@ -236,31 +236,78 @@ class DbHelper {
   Future<int> updateTransaksi(TransaksiKredit t) async {
     _validateTransaksi(t);
     final db = await database;
-    final exists = await db.query('transaksi_kredit', columns: ['id', 'pelanggan_id'], where: 'id = ?', whereArgs: [t.id], limit: 1);
-    if (exists.isEmpty) throw ValidasiException('Transaksi tidak ditemukan.');
-    final existingCustomerId = (exists.first['pelanggan_id'] as num?)?.toInt();
-    if (existingCustomerId == null || existingCustomerId != t.pelangganId) throw ValidasiException('Pelanggan transaksi tidak boleh diubah saat edit.');
-    final customer = await db.query('pelanggan', columns: ['id'], where: 'id = ?', whereArgs: [t.pelangganId], limit: 1);
-    if (customer.isEmpty) throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
-    final nomorResi = t.nomorResi.trim();
-    final duplicate = await db.query(
-      'transaksi_kredit',
-      columns: ['id'],
-      where: 'LOWER(nomor_resi) = ? AND id != ?',
-      whereArgs: [nomorResi.toLowerCase(), t.id],
-      limit: 1,
-    );
-    if (duplicate.isNotEmpty) {
-      throw ValidasiException('Nomor resi $nomorResi sudah digunakan oleh transaksi lain.');
-    }
-    final paidRow = await db.rawQuery('SELECT COALESCE(SUM(jumlah), 0) AS total_dibayar FROM pembayaran WHERE transaksi_id = ?', [t.id]);
-    final totalDibayar = (paidRow.first['total_dibayar'] as num?)?.toInt() ?? 0;
-    if (t.jumlah < totalDibayar) throw ValidasiException('Jumlah transaksi tidak boleh lebih kecil dari total pembayaran yang sudah masuk (Rp $totalDibayar).');
-    final data = t.toMap()..remove('id');
-    data['nomor_resi'] = nomorResi;
-    data['nama_penerima'] = t.namaPenerima.trim();
-    data['kota_tujuan'] = t.kotaTujuan.trim();
-    return db.update('transaksi_kredit', data, where: 'id = ?', whereArgs: [t.id]);
+
+    return db.transaction<int>((txn) async {
+      final exists = await txn.query(
+        'transaksi_kredit',
+        columns: ['id', 'pelanggan_id'],
+        where: 'id = ?',
+        whereArgs: [t.id],
+        limit: 1,
+      );
+      if (exists.isEmpty) throw ValidasiException('Transaksi tidak ditemukan.');
+
+      final existingCustomerId =
+          (exists.first['pelanggan_id'] as num?)?.toInt();
+      if (existingCustomerId == null || existingCustomerId != t.pelangganId) {
+        throw ValidasiException(
+          'Pelanggan transaksi tidak boleh diubah saat edit.',
+        );
+      }
+
+      final customer = await txn.query(
+        'pelanggan',
+        columns: ['id'],
+        where: 'id = ?',
+        whereArgs: [t.pelangganId],
+        limit: 1,
+      );
+      if (customer.isEmpty) {
+        throw ValidasiException('Pelanggan transaksi tidak ditemukan.');
+      }
+
+      final nomorResi = t.nomorResi.trim();
+      final duplicate = await txn.query(
+        'transaksi_kredit',
+        columns: ['id'],
+        where: 'LOWER(nomor_resi) = ? AND id != ?',
+        whereArgs: [nomorResi.toLowerCase(), t.id],
+        limit: 1,
+      );
+      if (duplicate.isNotEmpty) {
+        throw ValidasiException(
+          'Nomor resi $nomorResi sudah digunakan oleh transaksi lain.',
+        );
+      }
+
+      // Read the authoritative payment total in the same transaction as the
+      // update so an edit cannot pass validation against stale data.
+      final paidRow = await txn.rawQuery(
+        'SELECT COALESCE(SUM(jumlah), 0) AS total_dibayar '
+        'FROM pembayaran WHERE transaksi_id = ?',
+        [t.id],
+      );
+      final totalDibayar =
+          (paidRow.first['total_dibayar'] as num?)?.toInt() ?? 0;
+      if (t.jumlah < totalDibayar) {
+        throw ValidasiException(
+          'Jumlah transaksi tidak boleh lebih kecil dari total pembayaran '
+          'yang sudah masuk (Rp $totalDibayar).',
+        );
+      }
+
+      final data = t.toMap()..remove('id');
+      data['nomor_resi'] = nomorResi;
+      data['nama_penerima'] = t.namaPenerima.trim();
+      data['kota_tujuan'] = t.kotaTujuan.trim();
+
+      return txn.update(
+        'transaksi_kredit',
+        data,
+        where: 'id = ?',
+        whereArgs: [t.id],
+      );
+    });
   }
 
   Future<int> deleteTransaksi(int id) async => (await database).transaction((txn) => txn.delete('transaksi_kredit', where: 'id = ?', whereArgs: [id]));
