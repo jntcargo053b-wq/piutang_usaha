@@ -377,13 +377,13 @@ void main() {
 
     await db.insertPembayaran(Pembayaran(
       transaksiId: tid1,
-      tanggal: DateTime(2026, 9, 5),
+      tanggal: DateTime(2026, 8, 5),
       jumlah: 30000,
       metode: 'cash',
     ));
     await db.insertPembayaran(Pembayaran(
       transaksiId: tid2,
-      tanggal: DateTime(2026, 9, 6),
+      tanggal: DateTime(2026, 8, 6),
       jumlah: 50000,
       metode: 'transfer',
     ));
@@ -401,8 +401,8 @@ void main() {
     expect(customerRows.fold<int>(0, (sum, row) => sum + row.sisa), 70000);
 
     final rekap = await db.getRekapPeriode(
-      dari: DateTime(2026, 9, 1),
-      sampai: DateTime(2026, 9, 30),
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
     );
     expect(rekap, hasLength(2));
     expect(rekap.fold<int>(0, (sum, row) => sum + (row['jumlah'] as num).toInt()), 150000);
@@ -410,8 +410,8 @@ void main() {
     expect(rekap.fold<int>(0, (sum, row) => sum + (row['dibayar_periode'] as num).toInt()), 80000);
 
     final payments = await db.getPembayaranPeriode(
-      dari: DateTime(2026, 9, 1),
-      sampai: DateTime(2026, 9, 30),
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
     );
     expect(payments, hasLength(2));
     expect(payments.fold<int>(0, (sum, row) => sum + (row['jumlah'] as num).toInt()), 80000);
