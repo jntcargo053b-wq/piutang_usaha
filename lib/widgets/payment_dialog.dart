@@ -41,10 +41,12 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   Future<void> _save() async {
     final value = int.tryParse(_jumlah.text.replaceAll('.', '').replaceAll(',', '').trim());
-    if (value == null || value <= 0 || value > widget.transaksi.sisa) {
+    if (value == null || value <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Jumlah pembayaran tidak valid.')));
       return;
     }
+    // Do not trust the displayed balance: it may be stale after another edit/payment.
+    // DbHelper validates the authoritative balance inside the database operation.
     setState(() => _saving = true);
     try {
       await context.read<PiutangProvider>().tambahPembayaran(Pembayaran(
