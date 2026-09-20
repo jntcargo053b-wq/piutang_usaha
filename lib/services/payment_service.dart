@@ -133,21 +133,15 @@ class PaymentService {
       final current = <TransaksiKredit>[];
       for (final id in ids) {
         final transaksi = await _db.getTransaksiByIdInTransaction(txn, id);
-        if (transaksi != null && transaksi.sisa > 0) current.add(transaksi);
+        if (transaksi == null) {
+          throw ValidasiException('Transaksi pembayaran tidak ditemukan.');
+        }
+        if (transaksi.sisa > 0) current.add(transaksi);
       }
       current.sort((a, b) {
         final byDate = a.tanggal.compareTo(b.tanggal);
         return byDate != 0 ? byDate : a.id!.compareTo(b.id!);
       });
-
-      final totalOutstanding =
-          current.fold<int>(0, (sum, t) => sum + t.sisa);
-      if (totalOutstanding <= 0) {
-        throw StateError('Pelanggan tidak memiliki sisa tagihan.');
-      }
-      if (amount > totalOutstanding) {
-        throw ArgumentError('Pembayaran melebihi total sisa piutang pelanggan.');
-      }
 
       var remaining = amount;
       var allocated = 0;
@@ -170,7 +164,7 @@ class PaymentService {
       }
 
       if (remaining != 0 || allocated != amount) {
-        throw StateError('Pembayaran tidak dapat dialokasikan sepenuhnya.');
+        throw ArgumentError('Pembayaran melebihi total sisa piutang pelanggan.');
       }
       return allocated;
     });
