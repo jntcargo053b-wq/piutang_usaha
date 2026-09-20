@@ -52,7 +52,9 @@ class _ImportTransaksiScreenState extends State<ImportTransaksiScreen> {
     try {
       final result = await ImportTransaksiService.importRows(preview.rows);
       if (!mounted) return;
-      await context.read<PiutangProvider>().muatPelanggan();
+      final provider = context.read<PiutangProvider>();
+      await provider.muatPelanggan();
+      if (!mounted) return;
       setState(() => _preview = null);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${result.imported} transaksi berhasil diimport.')));
     } catch (e) { _error(e); }
