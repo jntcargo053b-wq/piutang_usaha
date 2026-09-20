@@ -242,6 +242,48 @@ void main() {
     );
   });
 
+  test('payment edit recalculates against other payments and preserves history atomically', () async {
+    final cid = await customer();
+    final tid = await transaction(cid, amount: 100000);
+    await payment(tid, 30000, method: 'cash');
+    await payment(tid, 20000, method: 'transfer');
+
+    final history = await db.getPembayaranByTransaksi(tid);
+    expect(history, hasLength(2));
+
+    await PaymentService(db: db).updatePayment(
+      payment: history[0],
+      amount: 40000,
+      method: PaymentService.transfer,
+      note: 'Koreksi',
+      date: DateTime(2026, 8, 12),
+    );
+
+    final updated = await db.getPembayaranByTransaksi(tid);
+    expect(updated, hasLength(2));
+    expect(updated[0].jumlah, 40000);
+    expect(updated[0].metode, PaymentService.transfer);
+    expect(updated[0].keterangan, 'Koreksi');
+    expect(updated[0].tanggal, DateTime(2026, 8, 12));
+    expect(updated[1].jumlah, 20000);
+
+    await expectLater(
+      PaymentService(db: db).updatePayment(
+        payment: updated[0],
+        amount: 90000,
+        method: PaymentService.cash,
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
+
+    final unchanged = await db.getPembayaranByTransaksi(tid);
+    expect(unchanged[0].jumlah, 40000);
+    expect(unchanged[0].metode, PaymentService.transfer);
+    expect(unchanged[0].keterangan, 'Koreksi');
+    expect(unchanged[1].jumlah, 20000);
+    expect((await db.getTransaksiById(tid))!.sisa, 40000);
+  });
+
   test('customer payment allocates oldest transactions first atomically', () async {
     final cid = await customer();
     final tid1 = await transaction(cid, amount: 100000, resi: 'RESI-1');
