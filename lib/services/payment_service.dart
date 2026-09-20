@@ -132,7 +132,7 @@ class PaymentService {
           .toList(growable: false);
       final current = <TransaksiKredit>[];
       for (final id in ids) {
-        final transaksi = await _db._getTransaksiByIdDb(txn, id);
+        final transaksi = await _db.getTransaksiByIdInTransaction(txn, id);
         if (transaksi != null && transaksi.sisa > 0) current.add(transaksi);
       }
       current.sort((a, b) {
