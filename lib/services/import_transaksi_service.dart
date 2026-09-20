@@ -197,15 +197,20 @@ class ImportTransaksiService {
       final ch = text[i];
       if (ch == '"') {
         if (quoted && i + 1 < text.length && text[i + 1] == '"') {
-          field.write('"'); i++;
+          field.write('"');
+          i++;
         } else {
           quoted = !quoted;
         }
       } else if (ch == ',' && !quoted) {
-        row.add(field.toString()); field = StringBuffer();
+        row.add(field.toString());
+        field = StringBuffer();
       } else if ((ch == '\n' || ch == '\r') && !quoted) {
-        if (ch == '\r' && i + 1 < text.length && text[i + 1] == '\n') i++;
-        row.add(field.toString()); field = StringBuffer();
+        if (ch == '\r' && i + 1 < text.length && text[i + 1] == '\n') {
+          i++;
+        }
+        row.add(field.toString());
+        field = StringBuffer();
         if (row.any((v) => v.trim().isNotEmpty)) records.add(row);
         row = <String>[];
       } else {
