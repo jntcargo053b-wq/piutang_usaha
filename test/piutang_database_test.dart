@@ -425,6 +425,32 @@ void main() {
     expect(history.single.jumlah, 20000);
   });
 
+  test('deleted transaction and its payments disappear from all report queries', () async {
+    final cid = await customer();
+    final deletedId = await transaction(cid, amount: 100000, resi: 'REP-DEL');
+    final keptId = await transaction(cid, amount: 50000, resi: 'REP-KEEP');
+    await payment(deletedId, 40000);
+    await payment(keptId, 20000);
+
+    await db.deleteTransaksi(deletedId);
+
+    final rekap = await db.getRekapPeriode(
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
+    );
+    expect(rekap, hasLength(1));
+    expect(rekap.single['id'], keptId);
+    expect(rekap.single['total_dibayar'], 20000);
+
+    final payments = await db.getPembayaranPeriode(
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
+    );
+    expect(payments, hasLength(1));
+    expect(payments.single['jumlah'], 20000);
+    expect(payments.single['pelanggan_id'], cid);
+  });
+
   test('dashboard, customer detail, and reports stay numerically consistent', () async {
     final cid = await customer('Konsisten Test');
     final tid1 = await transaction(cid, amount: 100000, resi: 'CONS-1');
