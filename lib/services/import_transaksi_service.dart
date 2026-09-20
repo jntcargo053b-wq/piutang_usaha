@@ -48,11 +48,11 @@ class ImportTransaksiService {
     excel.delete('Sheet1');
     sheet.appendRow(headers.map(TextCellValue.new).toList());
     sheet.appendRow([
-      const TextCellValue('PT Contoh Jaya'), const TextCellValue('08123456789'),
-      const TextCellValue('Alamat pelanggan'), const TextCellValue('20/09/2026'),
-      const TextCellValue('RESI-001'), const TextCellValue('Nama Penerima'),
-      const TextCellValue('Malang'), const IntCellValue(1), const DoubleCellValue(1.5),
-      const IntCellValue(25000), const TextCellValue('Contoh'),
+      TextCellValue('PT Contoh Jaya'), TextCellValue('08123456789'),
+      TextCellValue('Alamat pelanggan'), TextCellValue('20/09/2026'),
+      TextCellValue('RESI-001'), TextCellValue('Nama Penerima'),
+      TextCellValue('Malang'), IntCellValue(1), DoubleCellValue(1.5),
+      IntCellValue(25000), TextCellValue('Contoh'),
     ]);
     final bytes = excel.encode();
     if (bytes == null) throw StateError('Gagal membuat template Excel.');
@@ -64,9 +64,13 @@ class ImportTransaksiService {
 
   static List<ImportTransaksiRow> _parseXlsx(Uint8List bytes) {
     final workbook = Excel.decodeBytes(bytes);
-    if (workbook.tables.isEmpty) { throw const FormatException('File Excel tidak memiliki sheet.'); }
+    if (workbook.tables.isEmpty) {
+      throw const FormatException('File Excel tidak memiliki sheet.');
+    }
     final sheet = workbook.tables.values.first;
-    if (sheet.rows.isEmpty) { throw const FormatException('File kosong.'); }
+    if (sheet.rows.isEmpty) {
+      throw const FormatException('File kosong.');
+    }
     final indexes = _headerIndexes(_normalizeHeaders(sheet.rows.first.map(_cellText).toList()));
     _validateHeaders(indexes);
     final result = <ImportTransaksiRow>[];
@@ -146,13 +150,17 @@ class ImportTransaksiService {
   static int _parseInt(String raw, int line, String field) {
     final cleaned = raw.trim().replaceAll(RegExp(r'[^0-9-]'), '');
     final value = int.tryParse(cleaned);
-    if (value == null) throw FormatException('Baris $line: $field tidak valid.');
+    if (value == null) {
+      throw FormatException('Baris $line: $field tidak valid.');
+    }
     return value;
   }
 
   static double _parseDouble(String raw, int line, String field) {
     final value = double.tryParse(raw.trim().replaceAll(',', '.').replaceAll(RegExp(r'[^0-9.-]'), ''));
-    if (value == null) throw FormatException('Baris $line: $field tidak valid.');
+    if (value == null) {
+      throw FormatException('Baris $line: $field tidak valid.');
+    }
     return value;
   }
 
@@ -175,7 +183,9 @@ class ImportTransaksiService {
   static void _validateHeaders(Map<String, int> indexes) {
     const required = ['nama_pelanggan','tanggal','nomor_resi','nama_penerima','kota_tujuan','quantity','berat','jumlah'];
     final missing = required.where((h) => !indexes.containsKey(h)).toList();
-    if (missing.isNotEmpty) throw FormatException('Kolom wajib tidak ditemukan: ' + missing.join(', '));
+    if (missing.isNotEmpty) {
+      throw FormatException('Kolom wajib tidak ditemukan: ${missing.join(', ')}');
+    }
   }
 
   static List<List<String>> _csvRecords(String text) {
