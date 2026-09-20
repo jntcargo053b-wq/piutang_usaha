@@ -119,25 +119,40 @@ class PaymentService {
     _validateMethod(method);
     if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari 0.');
 
-    final outstanding =
-        transactions.where((t) => t.id != null && t.sisa > 0).toList();
-    final totalOutstanding =
-        outstanding.fold<int>(0, (sum, t) => sum + t.sisa);
-    if (totalOutstanding <= 0) {
-      throw StateError('Pelanggan tidak memiliki sisa tagihan.');
-    }
-    if (amount > totalOutstanding) {
-      throw ArgumentError('Pembayaran melebihi total sisa piutang pelanggan.');
-    }
-
     final paymentDate = date ?? DateTime.now();
     final cleanNote = note?.trim();
 
     return (await _db.database).transaction((txn) async {
+      // Reload balances inside the same transaction. The list supplied by the
+      // UI may be stale after another payment/edit/delete has changed the DB.
+      final ids = transactions
+          .map((t) => t.id)
+          .whereType<int>()
+          .toSet()
+          .toList(growable: false);
+      final current = <TransaksiKredit>[];
+      for (final id in ids) {
+        final transaksi = await _db._getTransaksiByIdDb(txn, id);
+        if (transaksi != null && transaksi.sisa > 0) current.add(transaksi);
+      }
+      current.sort((a, b) {
+        final byDate = a.tanggal.compareTo(b.tanggal);
+        return byDate != 0 ? byDate : a.id!.compareTo(b.id!);
+      });
+
+      final totalOutstanding =
+          current.fold<int>(0, (sum, t) => sum + t.sisa);
+      if (totalOutstanding <= 0) {
+        throw StateError('Pelanggan tidak memiliki sisa tagihan.');
+      }
+      if (amount > totalOutstanding) {
+        throw ArgumentError('Pembayaran melebihi total sisa piutang pelanggan.');
+      }
+
       var remaining = amount;
       var allocated = 0;
 
-      for (final transaksi in outstanding) {
+      for (final transaksi in current) {
         if (remaining == 0) break;
         final portion = remaining < transaksi.sisa ? remaining : transaksi.sisa;
         await _db.insertPembayaranInTransaction(
