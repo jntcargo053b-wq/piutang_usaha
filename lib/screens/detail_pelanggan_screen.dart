@@ -31,6 +31,7 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   late final TextEditingController _searchController;
   String _searchQuery = '';
   Timer? _searchDebounce;
+  int _loadGeneration = 0;
 
   @override void initState() {
     super.initState();
@@ -59,12 +60,13 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     try {
       final result = await context.read<PiutangProvider>().muatTransaksi(widget.pelanggan.id!);
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() { rows = result; loading = false; });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() => loading = false);
       _showError('Gagal memuat transaksi: $e');
     }
