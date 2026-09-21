@@ -19,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> topCustomers = [];
   bool loading = true;
   int _navIndex = 0;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     final provider = context.read<PiutangProvider>();
     try {
       final results = await Future.wait<dynamic>([
@@ -35,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
         provider.dashboardBulan(),
         provider.topPiutangPelanggan(),
       ]);
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         summary = Map<String, int>.from(results[0] as Map);
         aging = Map<String, int>.from(results[1] as Map);
@@ -44,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
         loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_friendlyError(e))),
