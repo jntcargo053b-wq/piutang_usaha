@@ -75,7 +75,7 @@ class _CustomerPaymentSheetState extends State<CustomerPaymentSheet> {
           Row(children: [Icon(Icons.payments_outlined, color: scheme.primary), const SizedBox(width: 10), Expanded(child: Text('Bayar Piutang Pelanggan', style: theme.textTheme.titleLarge))]),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: widget.transactions.isEmpty ? null : _showCustomerHistory,
+            onPressed: _saving || widget.transactions.isEmpty ? null : _showCustomerHistory,
             icon: const Icon(Icons.history_outlined),
             label: const Text('Lihat Riwayat Pembayaran Pelanggan'),
           ),
