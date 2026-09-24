@@ -13,7 +13,7 @@ class PaymentHistorySheet extends StatefulWidget {
   const PaymentHistorySheet({super.key, required this.transaksi});
 
   static Future<bool?> show(BuildContext context, TransaksiKredit transaksi) {
-    return showModalBottomSheet<void>(
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
