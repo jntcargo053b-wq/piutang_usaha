@@ -368,7 +368,7 @@ class DbHelper {
 
   Future<List<Map<String, dynamic>>> getPembayaranPeriode({required DateTime dari, required DateTime sampai}) async {
     final a = dari.toIso8601String(), b = DateTime(sampai.year, sampai.month, sampai.day + 1).toIso8601String();
-    return (await database).rawQuery('''SELECT p.id,p.tanggal,p.jumlah,p.metode,p.keterangan,t.deskripsi AS deskripsi_transaksi,pl.id AS pelanggan_id,pl.nama AS nama_pelanggan FROM pembayaran p JOIN transaksi_kredit t ON t.id=p.transaksi_id JOIN pelanggan pl ON pl.id=t.pelanggan_id WHERE p.tanggal>=? AND p.tanggal<? ORDER BY p.tanggal ASC,p.id ASC''', [a, b]);
+    return (await database).rawQuery('''SELECT p.id,p.tanggal,p.jumlah,p.metode,p.keterangan,t.nomor_resi,t.deskripsi AS deskripsi_transaksi,pl.id AS pelanggan_id,pl.nama AS nama_pelanggan FROM pembayaran p JOIN transaksi_kredit t ON t.id=p.transaksi_id JOIN pelanggan pl ON pl.id=t.pelanggan_id WHERE p.tanggal>=? AND p.tanggal<? ORDER BY p.tanggal ASC,p.id ASC''', [a, b]);
   }
 
   Future<int> insertPembayaran(Pembayaran p) async {
