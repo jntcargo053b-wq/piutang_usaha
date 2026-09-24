@@ -98,6 +98,15 @@ void main() {
     );
   });
 
+  test('schema validation accepts legacy database v6 without app_settings', () async {
+    final database = await db.database;
+
+    await database.execute('DROP TABLE app_settings');
+    await database.execute('PRAGMA user_version = 6');
+
+    await db.validateSchema(database);
+  });
+
   test('payment equal to outstanding is accepted and closes transaction', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
