@@ -227,7 +227,14 @@ class _LaporanScreenState extends State<LaporanScreen> {
 
     setState(() => exporting = true);
     try {
-      final bytes = await ExportService.buildRekapPdf(data, dari, sampai);
+      final bytes = await ExportService.buildRekapPdf(
+        data,
+        dari,
+        sampai,
+        statusFilter: statusFilter,
+        customerFilter: customerFilter,
+        agingFilter: agingFilter,
+      );
       if (!mounted) return;
       await Navigator.push(
         context,
@@ -260,6 +267,9 @@ class _LaporanScreenState extends State<LaporanScreen> {
         data,
         dari: dari,
         sampai: sampai,
+        statusFilter: statusFilter,
+        customerFilter: customerFilter,
+        agingFilter: agingFilter,
       );
     } catch (e) {
       if (mounted) {
