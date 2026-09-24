@@ -383,6 +383,9 @@ class DbHelper {
     final t = await _getTransaksiByIdDb(txn, p.transaksiId);
     if (t == null) throw ValidasiException('Transaksi tidak ditemukan.');
     if (p.jumlah > t.sisa) throw ValidasiException('Jumlah pembayaran melebihi sisa piutang.');
+    if (p.tanggal.isBefore(t.tanggal)) {
+      throw ValidasiException('Tanggal pembayaran tidak boleh lebih awal dari tanggal transaksi.');
+    }
     final data = p.toMap()..remove('id');
     data['metode'] = metode;
     return txn.insert('pembayaran', data);
