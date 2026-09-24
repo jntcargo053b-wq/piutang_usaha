@@ -498,6 +498,115 @@ void main() {
     expect(payments.fold<int>(0, (sum, row) => sum + (row['jumlah'] as num).toInt()), 80000);
   });
 
+  test('report period includes the entire end date for transactions', () async {
+    final cid = await customer();
+    final insideId = await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: cid,
+        tanggal: DateTime(2026, 8, 31, 23, 59, 59, 999),
+        nomorResi: 'PERIOD-IN',
+        namaPenerima: 'Penerima In',
+        kotaTujuan: 'Jakarta',
+        jumlah: 10000,
+      ),
+    );
+    await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: cid,
+        tanggal: DateTime(2026, 9, 1),
+        nomorResi: 'PERIOD-OUT',
+        namaPenerima: 'Penerima Out',
+        kotaTujuan: 'Jakarta',
+        jumlah: 20000,
+      ),
+    );
+
+    final rows = await db.getRekapPeriode(
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
+    );
+
+    expect(rows.map((row) => row['id']), contains(insideId));
+    expect(rows.map((row) => row['nomor_resi']), isNot(contains('PERIOD-OUT')));
+  });
+
+  test('report period includes payments through the end date but excludes the next day', () async {
+    final cid = await customer();
+    final tid = await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: cid,
+        tanggal: DateTime(2026, 8, 1),
+        nomorResi: 'PAY-PERIOD',
+        namaPenerima: 'Penerima',
+        kotaTujuan: 'Jakarta',
+        jumlah: 30000,
+      ),
+    );
+
+    await db.insertPembayaran(Pembayaran(
+      transaksiId: tid,
+      tanggal: DateTime(2026, 8, 31, 23, 59, 59, 999),
+      jumlah: 10000,
+      metode: 'cash',
+    ));
+    await db.insertPembayaran(Pembayaran(
+      transaksiId: tid,
+      tanggal: DateTime(2026, 9, 1),
+      jumlah: 5000,
+      metode: 'transfer',
+    ));
+
+    final rekap = await db.getRekapPeriode(
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
+    );
+    expect(rekap, hasLength(1));
+    expect(rekap.single['total_dibayar'], 15000);
+    expect(rekap.single['dibayar_periode'], 10000);
+
+    final payments = await db.getPembayaranPeriode(
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
+    );
+    expect(payments, hasLength(1));
+    expect(payments.single['jumlah'], 10000);
+    expect(payments.single['tanggal'], '2026-08-31T23:59:59.999');
+  });
+
+  test('payment-period report can include a payment for a transaction outside the transaction period', () async {
+    final cid = await customer();
+    final tid = await db.insertTransaksi(
+      TransaksiKredit(
+        pelangganId: cid,
+        tanggal: DateTime(2026, 7, 31),
+        nomorResi: 'CROSS-PERIOD',
+        namaPenerima: 'Penerima',
+        kotaTujuan: 'Jakarta',
+        jumlah: 20000,
+      ),
+    );
+    await db.insertPembayaran(Pembayaran(
+      transaksiId: tid,
+      tanggal: DateTime(2026, 8, 15),
+      jumlah: 5000,
+      metode: 'cash',
+    ));
+
+    final rekap = await db.getRekapPeriode(
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
+    );
+    expect(rekap, isEmpty);
+
+    final payments = await db.getPembayaranPeriode(
+      dari: DateTime(2026, 8, 1),
+      sampai: DateTime(2026, 8, 31),
+    );
+    expect(payments, hasLength(1));
+    expect(payments.single['nomor_resi'], 'CROSS-PERIOD');
+    expect(payments.single['jumlah'], 5000);
+  });
+
   test('aging places outstanding balance in correct bucket', () async {
     final cid = await customer();
     await db.insertTransaksi(
