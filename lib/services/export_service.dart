@@ -13,8 +13,11 @@ class ExportService {
   static Future<Uint8List> buildRekapPdf(
     List<Map<String, dynamic>> rows,
     DateTime dari,
-    DateTime sampai,
-  ) async {
+    DateTime sampai, {
+    String? statusFilter,
+    String? customerFilter,
+    String? agingFilter,
+  }) async {
     final settings = await ReportHeaderSettings.load();
     pw.MemoryImage? logo;
     if (settings.logoPath != null) {
@@ -62,6 +65,14 @@ class ExportService {
               pw.Text(settings.reportTitle, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 3),
               pw.Text('REKAP PERIODE ${Formatter.tanggalPendek(dari)} - ${Formatter.tanggalPendek(sampai)}', style: const pw.TextStyle(fontSize: 9)),
+              if (_hasFilter(statusFilter, 'Semua status') || _hasFilter(customerFilter, 'Semua pelanggan') || _hasFilter(agingFilter, 'Semua umur'))
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(top: 4),
+                  child: pw.Text(
+                    'Filter: ${_filterSummary(statusFilter: statusFilter, customerFilter: customerFilter, agingFilter: agingFilter)}',
+                    style: const pw.TextStyle(fontSize: 7),
+                  ),
+                ),
             ])),
           ]),
         ),
@@ -109,7 +120,14 @@ class ExportService {
     child: pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text(Formatter.rupiah(value), style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold))),
   );
 
-  static Future<void> exportRekapKeExcel(List<Map<String, dynamic>> rows, {required DateTime dari, required DateTime sampai}) async {
+  static Future<void> exportRekapKeExcel(
+    List<Map<String, dynamic>> rows, {
+    required DateTime dari,
+    required DateTime sampai,
+    String? statusFilter,
+    String? customerFilter,
+    String? agingFilter,
+  }) async {
     final settings = await ReportHeaderSettings.load();
     final excel = Excel.createExcel();
     final sheet = excel['Rekap'];
@@ -118,6 +136,9 @@ class ExportService {
     sheet.appendRow([TextCellValue(settings.companyName)]);
     sheet.appendRow([TextCellValue(settings.reportTitle)]);
     sheet.appendRow([TextCellValue('Periode'), TextCellValue(Formatter.tanggalPendek(dari)), TextCellValue('-'), TextCellValue(Formatter.tanggalPendek(sampai))]);
+    if (_hasFilter(statusFilter, 'Semua status') || _hasFilter(customerFilter, 'Semua pelanggan') || _hasFilter(agingFilter, 'Semua umur')) {
+      sheet.appendRow([TextCellValue('Filter'), TextCellValue(_filterSummary(statusFilter: statusFilter, customerFilter: customerFilter, agingFilter: agingFilter))]);
+    }
     sheet.appendRow([]);
     sheet.appendRow([TextCellValue('Tanggal'), TextCellValue('Pelanggan'), TextCellValue('Resi'), TextCellValue('Penerima'), TextCellValue('Kota'), TextCellValue('Kredit'), TextCellValue('Dibayar'), TextCellValue('Dibayar Periode'), TextCellValue('Sisa')]);
     var totalKredit = 0;
@@ -154,6 +175,22 @@ class ExportService {
     if (bytes == null) throw StateError('Gagal membuat file Excel');
     await file.writeAsBytes(bytes);
     await SharePlus.instance.share(ShareParams(files: [XFile(file.path)], text: 'Laporan Piutang Usaha'));
+  }
+
+  static bool _hasFilter(String? value, String defaultValue) =>
+      value != null && value.trim().isNotEmpty && value != defaultValue;
+
+  static String _filterSummary({
+    String? statusFilter,
+    String? customerFilter,
+    String? agingFilter,
+  }) {
+    final values = <String>[
+      if (_hasFilter(statusFilter, 'Semua status')) 'Status: $statusFilter',
+      if (_hasFilter(customerFilter, 'Semua pelanggan')) 'Pelanggan: $customerFilter',
+      if (_hasFilter(agingFilter, 'Semua umur')) 'Umur: $agingFilter',
+    ];
+    return values.join(' • ');
   }
 
   static DateTime _parseDate(dynamic value) {
