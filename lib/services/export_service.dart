@@ -145,7 +145,7 @@ class ExportService {
     var totalDibayar = 0;
     var totalDibayarPeriode = 0;
     var totalSisa = 0;
-    var excelRow = 5;
+    var excelRow = _hasFilter(statusFilter, 'Semua status') || _hasFilter(customerFilter, 'Semua pelanggan') || _hasFilter(agingFilter, 'Semua umur') ? 6 : 5;
     for (final row in rows) {
       final kredit = (row['jumlah'] as num?)?.toInt() ?? 0;
       final dibayar = (row['total_dibayar'] as num?)?.toInt() ?? 0;
