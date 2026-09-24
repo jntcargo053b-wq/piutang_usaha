@@ -15,7 +15,7 @@ class ValidasiException implements Exception {
 class DbHelper {
   static final DbHelper instance = DbHelper._internal();
   DbHelper._internal();
-  static const int _dbVersion = 6;
+  static const int _dbVersion = 7;
   static Database? _db;
 
   Future<Database> get database async {
@@ -34,6 +34,7 @@ class DbHelper {
     await db.execute('''CREATE TABLE pelanggan (id INTEGER PRIMARY KEY AUTOINCREMENT, nama TEXT NOT NULL, alamat TEXT, no_hp TEXT, created_at TEXT NOT NULL)''');
     await db.execute('''CREATE TABLE transaksi_kredit (id INTEGER PRIMARY KEY AUTOINCREMENT, pelanggan_id INTEGER NOT NULL, tanggal TEXT NOT NULL, nomor_resi TEXT NOT NULL, nama_penerima TEXT NOT NULL, kota_tujuan TEXT NOT NULL, deskripsi TEXT NOT NULL DEFAULT '', jumlah INTEGER NOT NULL, berat REAL NOT NULL DEFAULT 0, quantity INTEGER NOT NULL DEFAULT 1, FOREIGN KEY (pelanggan_id) REFERENCES pelanggan (id) ON DELETE CASCADE)''');
     await db.execute('''CREATE TABLE pembayaran (id INTEGER PRIMARY KEY AUTOINCREMENT, transaksi_id INTEGER NOT NULL, tanggal TEXT NOT NULL, jumlah INTEGER NOT NULL, metode TEXT, keterangan TEXT, FOREIGN KEY (transaksi_id) REFERENCES transaksi_kredit (id) ON DELETE CASCADE)''');
+    await db.execute('''CREATE TABLE app_settings (key TEXT PRIMARY KEY, value TEXT, blob BLOB)''');
     await _buatIndex(db);
   }
 
@@ -42,6 +43,7 @@ class DbHelper {
     await db.execute('CREATE INDEX IF NOT EXISTS idx_pembayaran_transaksi ON pembayaran (transaksi_id)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_transaksi_tanggal ON transaksi_kredit (tanggal)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_transaksi_resi ON transaksi_kredit (nomor_resi)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_transaksi_resi_nocase ON transaksi_kredit (nomor_resi COLLATE NOCASE)');
     await db.execute('CREATE INDEX IF NOT EXISTS idx_pembayaran_tanggal ON pembayaran (tanggal)');
   }
 
@@ -68,6 +70,10 @@ class DbHelper {
     if (oldVersion < 6) {
       await db.execute("ALTER TABLE transaksi_kredit ADD COLUMN berat REAL NOT NULL DEFAULT 0");
       await db.execute("ALTER TABLE transaksi_kredit ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1");
+    }
+    if (oldVersion < 7) {
+      await db.execute('''CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT, blob BLOB)''');
+      await db.execute('CREATE INDEX IF NOT EXISTS idx_transaksi_resi_nocase ON transaksi_kredit (nomor_resi COLLATE NOCASE)');
     }
   }
 
@@ -125,7 +131,7 @@ class DbHelper {
     final duplicate = await db.query(
       'transaksi_kredit',
       columns: ['id'],
-      where: 'LOWER(nomor_resi) = ?',
+      where: 'nomor_resi = ? COLLATE NOCASE',
       whereArgs: [nomorResi.toLowerCase()],
       limit: 1,
     );
@@ -270,7 +276,7 @@ class DbHelper {
       final duplicate = await txn.query(
         'transaksi_kredit',
         columns: ['id'],
-        where: 'LOWER(nomor_resi) = ? AND id != ?',
+        where: 'nomor_resi = ? COLLATE NOCASE AND id != ?',
         whereArgs: [nomorResi.toLowerCase(), t.id],
         limit: 1,
       );
@@ -409,6 +415,17 @@ class DbHelper {
     final names = tables.map((r) => r['name'] as String).toSet();
     const required = {'pelanggan', 'transaksi_kredit', 'pembayaran'};
     if (!names.containsAll(required)) throw ValidasiException('Database tidak kompatibel.');
+  }
+
+  Future<Map<String, dynamic>?> getAppSetting(String key, [DatabaseExecutor? executor]) async {
+    final db = executor ?? await database;
+    final rows = await db.query('app_settings', where: 'key = ?', whereArgs: [key], limit: 1);
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<void> setAppSetting(String key, {String? value, List<int>? blob, DatabaseExecutor? executor}) async {
+    final db = executor ?? await database;
+    await db.insert('app_settings', {'key': key, 'value': value, 'blob': blob}, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<void> flushForBackup() async { final db = _db; if (db == null) return; await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)'); }
