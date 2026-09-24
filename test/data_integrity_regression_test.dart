@@ -13,7 +13,7 @@ void main() {
     test('backup filename has millisecond precision for sub-minute uniqueness', () {
       final base = DateTime(2026, 9, 24, 17, 49, 12, 100);
       final next = base.add(const Duration(milliseconds: 1));
-      final later = base.add(const Duration(milliseconds: 999));
+      final later = base.add(const Duration(milliseconds: 899));
 
       final a = BackupService.backupFilename(base);
       final b = BackupService.backupFilename(next);
