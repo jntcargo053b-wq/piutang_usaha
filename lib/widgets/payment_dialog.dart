@@ -4,6 +4,7 @@ import '../models/pembayaran.dart';
 import '../models/transaksi_kredit.dart';
 import '../providers/piutang_provider.dart';
 import '../utils/formatter.dart';
+import '../utils/error_message.dart';
 import '../utils/rupiah_input_formatter.dart';
 import 'payment_history_sheet.dart';
 
@@ -25,7 +26,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
   DateTime _tanggal = DateTime.now();
   bool _saving = false;
 
-  String _cleanError(Object e) => e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+  String _cleanError(Object e) => friendlyError(e);
 
   @override void dispose() { _jumlah.dispose(); _keterangan.dispose(); super.dispose(); }
 
@@ -66,7 +67,8 @@ class _PaymentDialogState extends State<PaymentDialog> {
 
   Future<void> _showHistory() async {
     if (_saving) return;
-    await PaymentHistorySheet.show(context, widget.transaksi);
+    final changed = await PaymentHistorySheet.show(context, widget.transaksi);
+    if (changed == true && mounted) widget.onSaved?.call();
   }
 
   @override Widget build(BuildContext context) {

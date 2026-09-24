@@ -27,6 +27,10 @@ class PaymentService {
     _validateMethod(method);
     if (transaksi.id == null) throw StateError('Transaksi tidak valid.');
     if (amount <= 0) throw ArgumentError('Jumlah pembayaran harus lebih dari 0.');
+    final paymentDate = date ?? DateTime.now();
+    if (paymentDate.isBefore(transaksi.tanggal)) {
+      throw ArgumentError('Tanggal pembayaran tidak boleh lebih awal dari tanggal transaksi.');
+    }
 
     await _db.insertPembayaran(Pembayaran(
       transaksiId: transaksi.id!,
@@ -90,9 +94,11 @@ class PaymentService {
         throw ArgumentError('Jumlah pembayaran melebihi total tagihan.');
       }
 
-      final storedDate = DateTime.parse(
-        existingRows.first['tanggal'] as String,
-      );
+      final storedDate = DateTime.parse(existingRows.first['tanggal'] as String);
+      final effectiveDate = date ?? storedDate;
+      if (effectiveDate.isBefore(transaction.tanggal)) {
+        throw ArgumentError('Tanggal pembayaran tidak boleh lebih awal dari tanggal transaksi.');
+      }
       await txn.update(
         'pembayaran',
         {

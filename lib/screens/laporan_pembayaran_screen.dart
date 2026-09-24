@@ -4,6 +4,7 @@ import '../services/db_helper.dart';
 import '../services/payment_report_service.dart';
 import 'pdf_preview_screen.dart';
 import '../utils/formatter.dart';
+import '../utils/error_message.dart';
 
 class LaporanPembayaranScreen extends StatefulWidget {
   const LaporanPembayaranScreen({super.key});
@@ -46,7 +47,7 @@ class _LaporanPembayaranScreenState extends State<LaporanPembayaranScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      _error(e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''));
+      _error(friendlyError(e));
     }
   }
 

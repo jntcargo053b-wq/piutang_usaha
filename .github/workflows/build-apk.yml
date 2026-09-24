@@ -19,11 +19,110 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.35.7'
           channel: stable
           cache: true
 
       - name: Generate Android platform
         run: flutter create --platforms=android --org com.piutangusaha .
+
+      - name: Configure permanent release signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD ANDROID_STORE_PASSWORD; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name GitHub Secret belum diatur."
+              exit 1
+            fi
+          done
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/piutang-release.jks
+          chmod 600 android/piutang-release.jks
+
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_STORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=../piutang-release.jks
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('android/app/build.gradle')
+          if not path.is_file():
+              kts = Path('android/app/build.gradle.kts')
+              if not kts.is_file():
+                  raise SystemExit('Android app Gradle file was not generated')
+              path = kts
+
+          text = path.read_text()
+
+          if path.suffix == '.gradle':
+              block = r'''
+          def keystorePropertiesFile = rootProject.file("key.properties")
+          def keystoreProperties = new Properties()
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+          }
+
+          android {
+              signingConfigs {
+                  release {
+                      keyAlias keystoreProperties['keyAlias']
+                      keyPassword keystoreProperties['keyPassword']
+                      storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                      storePassword keystoreProperties['storePassword']
+                  }
+              }
+          }
+          '''
+              if 'keystorePropertiesFile' not in text:
+                  text = text.replace('android {', block + '\nandroid {', 1)
+              text = text.replace(
+                  'signingConfig = signingConfigs.debug',
+                  'signingConfig = signingConfigs.release',
+              )
+              text = text.replace(
+                  'signingConfig signingConfigs.debug',
+                  'signingConfig signingConfigs.release',
+              )
+          else:
+              block = r'''
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          val keystoreProperties = java.util.Properties()
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(java.io.FileInputStream(keystorePropertiesFile))
+          }
+
+          android {
+              signingConfigs {
+                  create("release") {
+                      keyAlias = keystoreProperties["keyAlias"] as String?
+                      keyPassword = keystoreProperties["keyPassword"] as String?
+                      storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                      storePassword = keystoreProperties["storePassword"] as String?
+                  }
+              }
+          }
+          '''
+              if 'keystorePropertiesFile' not in text:
+                  text = text.replace('android {', block + '\nandroid {', 1)
+              text = text.replace(
+                  'signingConfig = signingConfigs.getByName("debug")',
+                  'signingConfig = signingConfigs.getByName("release")',
+              )
+
+          path.write_text(text)
+          print(f'Configured permanent release signing in {path}')
+          PY
 
       - name: Set Android compile SDK
         shell: bash
@@ -46,7 +145,6 @@ jobs:
           replacements = [
               ('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'),
               ('compileSdk flutter.compileSdkVersion', 'compileSdk 36'),
-              ('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'),
           ]
           for old, new in replacements:
               text = text.replace(old, new)
@@ -72,6 +170,11 @@ jobs:
 
       - name: Build APK
         run: flutter build apk --release
+
+      - name: Remove signing material
+        if: always()
+        run: |
+          rm -f android/piutang-release.jks android/key.properties
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

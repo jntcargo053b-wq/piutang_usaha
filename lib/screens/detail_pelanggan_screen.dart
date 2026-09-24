@@ -148,16 +148,20 @@ class _DetailPelangganScreenState extends State<DetailPelangganScreen> {
           const SizedBox(height: 16),
           const _FormSectionTitle(icon: Icons.place_outlined, title: 'Tujuan & Paket'),
           const SizedBox(height: 10),
-          TextFormField(controller: kota, readOnly: true, decoration: const InputDecoration(labelText: 'Kota Tujuan *', hintText: 'Pilih kabupaten/kota', border: OutlineInputBorder(), suffixIcon: Icon(Icons.arrow_drop_down)), onTap: () async {
-            final selected = await _pilihKota(kota.text);
-            if (!ctx.mounted) return;
-            if (selected != null) setSheetState(() => kota.text = selected);
-          }, validator: (value) => value == null || value.trim().isEmpty ? 'Kota tujuan wajib dipilih' : null),
+          TextFormField(controller: kota, decoration: InputDecoration(labelText: 'Kota Tujuan *', hintText: 'Ketik atau pilih kabupaten/kota', border: const OutlineInputBorder(), suffixIcon: IconButton(
+            tooltip: 'Pilih dari daftar',
+            icon: const Icon(Icons.arrow_drop_down),
+            onPressed: () async {
+              final selected = await _pilihKota(kota.text);
+              if (!ctx.mounted) return;
+              if (selected != null) setSheetState(() => kota.text = selected);
+            },
+          )), validator: (value) => value == null || value.trim().isEmpty ? 'Kota tujuan wajib diisi' : null),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: TextFormField(controller: quantity, keyboardType: TextInputType.number, textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Quantity *', hintText: '1', border: OutlineInputBorder()), validator: (value) { final n = int.tryParse((value ?? '').trim()); return n == null || n <= 0 ? 'Quantity tidak valid' : null; })),
             const SizedBox(width: 10),
-            Expanded(child: TextFormField(controller: berat, keyboardType: const TextInputType.numberWithOptions(decimal: true), textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Berat (kg) *', hintText: '0,5', suffixText: 'kg', border: OutlineInputBorder()), validator: (value) { final n = double.tryParse((value ?? '').trim().replaceAll(',', '.')); return n == null || n <= 0 ? 'Berat tidak valid' : null; })),
+            Expanded(child: TextFormField(controller: berat, keyboardType: const TextInputType.numberWithOptions(decimal: true), textInputAction: TextInputAction.next, decoration: const InputDecoration(labelText: 'Berat (kg) *', hintText: '0,5', suffixText: 'kg', border: OutlineInputBorder()), validator: (value) { final n = double.tryParse((value ?? '').trim().replaceAll(',', '.')); return n == null || n < 0 ? 'Berat tidak valid' : null; })),
           ]),
           const SizedBox(height: 16),
           const _FormSectionTitle(icon: Icons.payments_outlined, title: 'Nilai Transaksi'),
