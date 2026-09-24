@@ -144,10 +144,8 @@ jobs:
               text = text.replace('signingConfig = signingConfigs.debug', 'signingConfig = signingConfigs.release')
               text = text.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
           else:
-              block = r'''
-          import java.io.FileInputStream
-          import java.util.Properties
-
+              imports = 'import java.io.FileInputStream\nimport java.util.Properties\n\n'
+              signing_block = r'''
           val keystorePropertiesFile = rootProject.file("key.properties")
           val keystoreProperties = Properties()
           if (keystorePropertiesFile.exists()) {
@@ -159,15 +157,16 @@ jobs:
                   create("release") {
                       keyAlias = keystoreProperties["keyAlias"]?.toString()
                       keyPassword = keystoreProperties["keyPassword"]?.toString()
-                      val storePath = keystoreProperties["storeFile"]?.toString()
-                      storeFile = storePath?.let { file(it) }
+                      val storePath: String? = keystoreProperties["storeFile"]?.toString()
+                      storeFile = storePath?.let { storePathValue -> file(storePathValue) }
                       storePassword = keystoreProperties["storePassword"]?.toString()
                   }
               }
           }
           '''
               if 'keystorePropertiesFile' not in text:
-                  text = text.replace('android {', block + '\nandroid {', 1)
+                  text = imports + text
+                  text = text.replace('android {', signing_block + '\nandroid {', 1)
               text = text.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = signingConfigs.getByName("release")')
 
           path.write_text(text)
