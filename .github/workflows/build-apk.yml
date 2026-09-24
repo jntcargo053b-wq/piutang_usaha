@@ -26,7 +26,45 @@ jobs:
       - name: Generate Android platform
         run: flutter create --platforms=android --org com.piutangusaha .
 
-      - name: Configure permanent release signing
+      - name: Set Android compile SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          candidates = [
+              Path('android/app/build.gradle'),
+              Path('android/app/build.gradle.kts'),
+          ]
+          path = next((p for p in candidates if p.is_file()), None)
+          if path is None:
+              raise SystemExit('Android app Gradle file was not generated')
+
+          text = path.read_text()
+          for old, new in [
+              ('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'),
+              ('compileSdk flutter.compileSdkVersion', 'compileSdk 36'),
+          ]:
+              text = text.replace(old, new)
+
+          if 'compileSdk = 36' not in text and 'compileSdk 36' not in text:
+              raise SystemExit(f'Could not set compileSdk 36 in {path}')
+
+          path.write_text(text)
+          print(f'Using {path}')
+          PY
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test --concurrency=1
+
+      - name: Configure release signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -36,22 +74,39 @@ jobs:
         run: |
           set -euo pipefail
 
-          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD ANDROID_STORE_PASSWORD; do
-            if [[ -z "${!name:-}" ]]; then
-              echo "::error::$name GitHub Secret belum diatur."
-              exit 1
-            fi
-          done
+          if [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEY_ALIAS:-}" && -n "${ANDROID_KEY_PASSWORD:-}" && -n "${ANDROID_STORE_PASSWORD:-}" ]]; then
+            echo "RELEASE_SIGNING_MODE=permanent" >> "$GITHUB_ENV"
 
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/piutang-release.jks
-          chmod 600 android/piutang-release.jks
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/piutang-release.jks
+            chmod 600 android/piutang-release.jks
 
-          cat > android/key.properties <<EOF
+            cat > android/key.properties <<EOF
           storePassword=$ANDROID_STORE_PASSWORD
           keyPassword=$ANDROID_KEY_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           storeFile=../piutang-release.jks
           EOF
+
+            echo "Permanent release signing configured from GitHub Secrets."
+          else
+            echo "RELEASE_SIGNING_MODE=temporary-ci" >> "$GITHUB_ENV"
+
+            ci_store_password="$(openssl rand -hex 24)"
+            ci_key_password="$ci_store_password"
+
+            keytool -genkeypair               -keystore android/piutang-release.jks               -storepass "$ci_store_password"               -keypass "$ci_key_password"               -alias piutang-ci               -keyalg RSA               -keysize 2048               -validity 1               -dname "CN=Piutang Usaha CI, OU=Build, O=Piutang Usaha, C=ID"
+
+            chmod 600 android/piutang-release.jks
+
+            cat > android/key.properties <<EOF
+          storePassword=$ci_store_password
+          keyPassword=$ci_key_password
+          keyAlias=piutang-ci
+          storeFile=../piutang-release.jks
+          EOF
+
+            echo "::warning::Release signing secrets belum lengkap. APK dibuat dengan temporary CI signing key; APK ini tidak cocok untuk update ke APK yang ditandatangani dengan permanent key."
+          fi
 
           python3 - <<'PY'
           from pathlib import Path
@@ -86,14 +141,8 @@ jobs:
           '''
               if 'keystorePropertiesFile' not in text:
                   text = text.replace('android {', block + '\nandroid {', 1)
-              text = text.replace(
-                  'signingConfig = signingConfigs.debug',
-                  'signingConfig = signingConfigs.release',
-              )
-              text = text.replace(
-                  'signingConfig signingConfigs.debug',
-                  'signingConfig signingConfigs.release',
-              )
+              text = text.replace('signingConfig = signingConfigs.debug', 'signingConfig = signingConfigs.release')
+              text = text.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
           else:
               block = r'''
           val keystorePropertiesFile = rootProject.file("key.properties")
@@ -115,58 +164,11 @@ jobs:
           '''
               if 'keystorePropertiesFile' not in text:
                   text = text.replace('android {', block + '\nandroid {', 1)
-              text = text.replace(
-                  'signingConfig = signingConfigs.getByName("debug")',
-                  'signingConfig = signingConfigs.getByName("release")',
-              )
+              text = text.replace('signingConfig = signingConfigs.getByName("debug")', 'signingConfig = signingConfigs.getByName("release")')
 
           path.write_text(text)
-          print(f'Configured permanent release signing in {path}')
+          print(f'Configured release signing in {path}')
           PY
-
-      - name: Set Android compile SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          candidates = [
-              Path('android/app/build.gradle'),
-              Path('android/app/build.gradle.kts'),
-          ]
-          path = next((p for p in candidates if p.is_file()), None)
-          if path is None:
-              raise SystemExit('Android app Gradle file was not generated')
-
-          text = path.read_text()
-          original = text
-
-          replacements = [
-              ('compileSdk = flutter.compileSdkVersion', 'compileSdk = 36'),
-              ('compileSdk flutter.compileSdkVersion', 'compileSdk 36'),
-          ]
-          for old, new in replacements:
-              text = text.replace(old, new)
-
-          if text == original or ('compileSdk = 36' not in text and 'compileSdk 36' not in text):
-              raise SystemExit(f'Could not set compileSdk 36 in {path}')
-
-          path.write_text(text)
-          print(f'Using {path}')
-          for line in text.splitlines():
-              if 'compileSdk' in line:
-                  print(line)
-          PY
-
-      - name: Get dependencies
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        run: flutter test --concurrency=1
 
       - name: Build APK
         run: flutter build apk --release
