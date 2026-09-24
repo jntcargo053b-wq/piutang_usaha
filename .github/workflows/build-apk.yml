@@ -145,10 +145,10 @@ jobs:
               text = text.replace('signingConfig signingConfigs.debug', 'signingConfig signingConfigs.release')
           else:
               block = r'''
-          val keystorePropertiesFile = rootProject.file("key.properties")
           import java.io.FileInputStream
           import java.util.Properties
 
+          val keystorePropertiesFile = rootProject.file("key.properties")
           val keystoreProperties = Properties()
           if (keystorePropertiesFile.exists()) {
               keystoreProperties.load(FileInputStream(keystorePropertiesFile))
@@ -159,7 +159,8 @@ jobs:
                   create("release") {
                       keyAlias = keystoreProperties["keyAlias"]?.toString()
                       keyPassword = keystoreProperties["keyPassword"]?.toString()
-                      storeFile = keystoreProperties["storeFile"]?.toString()?.let { storePath -> file(storePath) }
+                      val storePath = keystoreProperties["storeFile"]?.toString()
+                      storeFile = storePath?.let { file(it) }
                       storePassword = keystoreProperties["storePassword"]?.toString()
                   }
               }
