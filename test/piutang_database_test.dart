@@ -86,6 +86,18 @@ void main() {
     expect(await db.getAllPelanggan(), isEmpty);
   });
 
+  test('schema validation requires app_settings for database v7', () async {
+    final database = await db.database;
+    await db.validateSchema(database);
+
+    await database.execute('DROP TABLE app_settings');
+
+    await expectLater(
+      db.validateSchema(database),
+      throwsA(isA<ValidasiException>()),
+    );
+  });
+
   test('payment equal to outstanding is accepted and closes transaction', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
