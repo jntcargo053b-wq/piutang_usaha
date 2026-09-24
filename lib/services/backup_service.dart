@@ -25,10 +25,7 @@ class BackupService {
     }
 
     final now = DateTime.now();
-    final name =
-        'backup_piutang_${now.year}${_pad(now.month)}${_pad(now.day)}_'
-        '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}'
-        '${now.millisecond.toString().padLeft(3, '0')}.db';
+    final name = backupFilename(now);
     final tujuan = File(p.join((await getTemporaryDirectory()).path, name));
 
     try {
@@ -45,6 +42,11 @@ class BackupService {
       await DbHelper.instance.database;
     }
   }
+
+  static String backupFilename(DateTime now) =>
+      'backup_piutang_${now.year}${_pad(now.month)}${_pad(now.day)}_'
+      '${_pad(now.hour)}${_pad(now.minute)}${_pad(now.second)}'
+      '${now.millisecond.toString().padLeft(3, '0')}.db';
 
   static String _pad(int n) => n.toString().padLeft(2, '0');
 
