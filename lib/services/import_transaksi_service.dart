@@ -4,6 +4,7 @@ import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/import_transaksi_row.dart';
 import 'db_helper.dart';
+import '../utils/error_message.dart';
 
 class ImportPreview {
   final List<ImportTransaksiRow> rows;
@@ -43,7 +44,7 @@ class ImportTransaksiService {
       final duplicateErrors = await DbHelper.instance.validateImportRows(rows);
       return ImportPreview(rows: rows, errors: duplicateErrors, fileName: file.name);
     } catch (e) {
-      return ImportPreview(rows: const [], errors: [e.toString().replaceFirst('Exception: ', '')], fileName: file.name);
+      return ImportPreview(rows: const [], errors: [friendlyError(e)], fileName: file.name);
     }
   }
 
@@ -148,7 +149,9 @@ class ImportTransaksiService {
     final parts = value.split(RegExp(r'[./-]')).map((e) => int.tryParse(e.trim())).toList();
     if (parts.length == 3 && parts.every((e) => e != null)) {
       final a = parts[0]!, b = parts[1]!, c = parts[2]!;
-      final year = a > 1900 ? a : c;
+      var year = a > 1900 ? a : c;
+      if (year < 100) year += 2000;
+      if (year < 2000) throw FormatException('Baris $line: tahun tanggal harus 2000 atau lebih.');
       final month = b;
       final day = a > 1900 ? c : a;
       final date = DateTime(year, month, day);
@@ -180,14 +183,17 @@ class ImportTransaksiService {
     } else if (value.contains('.') || value.contains(',')) {
       final separator = value.contains('.') ? '.' : ',';
       final parts = value.split(separator);
-      if (parts.length != 2 || parts[1].length != 3) {
+      final thousands = parts.length > 1 &&
+          parts.skip(1).every((part) => part.length == 3 && int.tryParse(part) != null);
+      if (thousands) {
+        value = parts.join();
+      } else {
         final parsed = double.tryParse(value.replaceAll(',', '.'));
         if (parsed == null || parsed % 1 != 0) {
           throw FormatException('Baris $line: $field harus berupa bilangan bulat.');
         }
         return negative ? -parsed.toInt() : parsed.toInt();
       }
-      value = parts.join();
     }
     final parsed = int.tryParse(value);
     if (parsed == null) {
