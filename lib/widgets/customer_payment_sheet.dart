@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/transaksi_kredit.dart';
 import '../services/payment_service.dart';
 import '../utils/formatter.dart';
+import '../utils/error_message.dart';
 import '../utils/rupiah_input_formatter.dart';
 import 'customer_payment_history_sheet.dart';
 
@@ -31,7 +32,7 @@ class _CustomerPaymentSheetState extends State<CustomerPaymentSheet> {
 
   List<TransaksiKredit> get _outstanding => widget.transactions.where((t) => t.id != null && t.sisa > 0).toList();
   int get _totalOutstanding => _outstanding.fold<int>(0, (sum, t) => sum + t.sisa);
-  String _cleanError(Object error) => error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+  String _cleanError(Object error) => friendlyError(error);
 
   @override void dispose() { _amount.dispose(); _note.dispose(); super.dispose(); }
 
