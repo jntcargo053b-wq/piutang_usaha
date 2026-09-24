@@ -359,7 +359,7 @@ class DbHelper {
     return {'kredit': (r['kredit'] as num).toInt(), 'pembayaran': (r['pembayaran'] as num).toInt()};
   }
 
-  Future<List<Map<String, dynamic>>> getTopPiutangPelanggan({int limit = 5}) async => (await database).rawQuery('''SELECT pl.id,pl.nama,COALESCE((SELECT SUM(t.jumlah) FROM transaksi_kredit t WHERE t.pelanggan_id=pl.id),0)-COALESCE((SELECT SUM(p.jumlah) FROM pembayaran p JOIN transaksi_kredit t2 ON t2.id=p.transaksi_id WHERE t2.pelanggan_id=pl.id),0) AS sisa_piutang FROM pelanggan pl ORDER BY sisa_piutang DESC LIMIT ?''', [limit]);
+  Future<List<Map<String, dynamic>>> getTopPiutangPelanggan({int limit = 5}) async => (await database).rawQuery('''SELECT pl.id,pl.nama,COALESCE((SELECT SUM(t.jumlah) FROM transaksi_kredit t WHERE t.pelanggan_id=pl.id),0)-COALESCE((SELECT SUM(p.jumlah) FROM pembayaran p JOIN transaksi_kredit t2 ON t2.id=p.transaksi_id WHERE t2.pelanggan_id=pl.id),0) AS sisa_piutang FROM pelanggan pl WHERE (COALESCE((SELECT SUM(t.jumlah) FROM transaksi_kredit t WHERE t.pelanggan_id=pl.id),0)-COALESCE((SELECT SUM(p.jumlah) FROM pembayaran p JOIN transaksi_kredit t2 ON t2.id=p.transaksi_id WHERE t2.pelanggan_id=pl.id),0)) > 0 ORDER BY sisa_piutang DESC LIMIT ?''', [limit]);
 
   Future<List<Map<String, dynamic>>> getRekapPeriode({required DateTime dari, required DateTime sampai}) async {
     final a = dari.toIso8601String(), b = DateTime(sampai.year, sampai.month, sampai.day + 1).toIso8601String();
