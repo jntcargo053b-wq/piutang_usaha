@@ -162,10 +162,12 @@ class _PelangganScreenState extends State<PelangganScreen> {
                                   );
                                 } else {
                                   await provider.updatePelanggan(
-                                    old.copyWith(
+                                    Pelanggan(
+                                      id: old.id,
                                       nama: name.text.trim(),
-                                      noHp: phone.text.trim(),
-                                      alamat: address.text.trim(),
+                                      noHp: phone.text.trim().isEmpty ? null : phone.text.trim(),
+                                      alamat: address.text.trim().isEmpty ? null : address.text.trim(),
+                                      createdAt: old.createdAt,
                                     ),
                                   );
                                 }
