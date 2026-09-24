@@ -5,13 +5,14 @@ import '../models/transaksi_kredit.dart';
 import '../services/payment_service.dart';
 import '../services/db_helper.dart';
 import '../utils/formatter.dart';
+import '../utils/error_message.dart';
 import '../utils/rupiah_input_formatter.dart';
 
 class PaymentHistorySheet extends StatefulWidget {
   final TransaksiKredit transaksi;
   const PaymentHistorySheet({super.key, required this.transaksi});
 
-  static Future<void> show(BuildContext context, TransaksiKredit transaksi) {
+  static Future<bool?> show(BuildContext context, TransaksiKredit transaksi) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -44,6 +45,32 @@ class _PaymentHistorySheetState extends State<PaymentHistorySheet> {
     );
     if (result == true && mounted) {
       setState(_reload);
+    }
+  }
+
+  Future<void> _deletePayment(Pembayaran payment) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Pembayaran?'),
+        content: Text('Pembayaran ${Formatter.rupiah(payment.jumlah)} akan dihapus. Tindakan ini tidak dapat dibatalkan.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await DbHelper.instance.deletePembayaran(payment.id!);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      }
     }
   }
 
@@ -106,10 +133,18 @@ class _PaymentHistorySheetState extends State<PaymentHistorySheet> {
                           title: Text(Formatter.rupiah(payment.jumlah), style: const TextStyle(fontWeight: FontWeight.w700)),
                           subtitle: Text('${Formatter.tanggalPanjang(payment.tanggal)} • ${_methodLabel(payment.metode)}${payment.keterangan == null || payment.keterangan!.trim().isEmpty ? '' : '\n${payment.keterangan!.trim()}'}'),
                           isThreeLine: payment.keterangan != null && payment.keterangan!.trim().isNotEmpty,
-                          trailing: IconButton(
-                            tooltip: 'Edit pembayaran',
-                            icon: const Icon(Icons.edit_outlined),
-                            onPressed: () => _editPayment(payment),
+                          trailing: PopupMenuButton<String>(
+                            onSelected: (value) async {
+                              if (value == 'edit') {
+                                await _editPayment(payment);
+                              } else if (value == 'delete') {
+                                await _deletePayment(payment);
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Edit pembayaran')),
+                              PopupMenuItem(value: 'delete', child: Text('Hapus pembayaran')),
+                            ],
                           ),
                         );
                       },
@@ -151,7 +186,7 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
   late final TextEditingController _amountController;
   late final TextEditingController _noteController;
   late DateTime _date;
-  late String _method;
+  String? _method;
   bool _saving = false;
 
   @override
@@ -160,7 +195,8 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
     _amountController = TextEditingController(text: _formatAmount(widget.payment.jumlah));
     _noteController = TextEditingController(text: widget.payment.keterangan ?? '');
     _date = widget.payment.tanggal;
-    _method = widget.payment.metode == PaymentService.transfer ? PaymentService.transfer : PaymentService.cash;
+    final storedMethod = widget.payment.metode?.trim().toLowerCase();
+    _method = storedMethod == PaymentService.transfer || storedMethod == PaymentService.cash ? storedMethod : null;
   }
 
   @override
@@ -192,12 +228,17 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
       return;
     }
 
+    if (_method == null) {
+      _showError('Pilih metode pembayaran terlebih dahulu.');
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       await PaymentService().updatePayment(
         payment: widget.payment,
         amount: amount,
-        method: _method,
+        method: _method!,
         note: _noteController.text,
         date: _date,
       );
@@ -205,7 +246,7 @@ class _EditPaymentDialogState extends State<_EditPaymentDialog> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        _showError(e.toString().replaceFirst('ArgumentError: ', '').replaceFirst('StateError: ', ''));
+        _showError(friendlyError(e));
       }
     }
   }
