@@ -414,10 +414,25 @@ class DbHelper {
 
   Future<void> validateSchema([DatabaseExecutor? executor]) async {
     final db = executor ?? await database;
-    final tables = await db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('pelanggan','transaksi_kredit','pembayaran')");
+    final tables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' "
+      "AND name IN ('pelanggan','transaksi_kredit','pembayaran','app_settings')",
+    );
     final names = tables.map((r) => r['name'] as String).toSet();
     const required = {'pelanggan', 'transaksi_kredit', 'pembayaran'};
-    if (!names.containsAll(required)) throw ValidasiException('Database tidak kompatibel.');
+    if (!names.containsAll(required)) {
+      throw ValidasiException('Database tidak kompatibel.');
+    }
+
+    // app_settings was introduced in database v7. Older backups are still
+    // accepted here because opening them through DbHelper can migrate them.
+    final versionRows = await db.rawQuery('PRAGMA user_version');
+    final version = (versionRows.first['user_version'] as num?)?.toInt() ?? 0;
+    if (version >= 7 && !names.contains('app_settings')) {
+      throw ValidasiException(
+        'Database v$version tidak kompatibel: tabel app_settings tidak ditemukan.',
+      );
+    }
   }
 
   Future<Map<String, dynamic>?> getAppSetting(String key, [DatabaseExecutor? executor]) async {
