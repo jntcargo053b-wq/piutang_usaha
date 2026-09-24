@@ -72,18 +72,28 @@ class BackupService {
     await DbHelper.instance.tutupKoneksi();
     await _deleteSidecars(dbPath);
 
+    var rollbackCreated = false;
+    var currentReplaced = false;
+
     try {
+      // Keep the current database untouched until its rollback copy exists.
       if (await current.exists()) {
         if (await rollback.exists()) await rollback.delete();
         await current.copy(rollback.path);
+        rollbackCreated = true;
       }
 
-      await _deleteSidecars(dbPath);
       if (await tmp.exists()) await tmp.delete();
       await selected.copy(tmp.path);
 
-      if (await current.exists()) await current.delete();
+      // Validate the exact file that will replace the live database.
+      await _validateBackupFile(tmp.path);
+
+      if (await current.exists()) {
+        await current.delete();
+      }
       await tmp.rename(current.path);
+      currentReplaced = true;
       await _deleteSidecars(dbPath);
 
       final db = await DbHelper.instance.database;
@@ -95,19 +105,31 @@ class BackupService {
       }
 
       if (await rollback.exists()) await rollback.delete();
+      rollbackCreated = false;
       return true;
     } catch (e) {
       await DbHelper.instance.tutupKoneksi();
       await _deleteSidecars(dbPath);
+
       if (await tmp.exists()) await tmp.delete();
-      if (await current.exists()) await current.delete();
-      if (await rollback.exists()) await rollback.rename(current.path);
+
+      // If replacement never happened, the original database was never
+      // deleted and must be left untouched.
+      if (currentReplaced && await current.exists()) {
+        await current.delete();
+      }
+
+      if (rollbackCreated && await rollback.exists()) {
+        await rollback.rename(current.path);
+        rollbackCreated = false;
+      }
+
       await _deleteSidecars(dbPath);
       await DbHelper.instance.database;
       rethrow;
     } finally {
       if (await tmp.exists()) await tmp.delete();
-      if (await rollback.exists() && await current.exists()) {
+      if (rollbackCreated && await rollback.exists()) {
         await rollback.delete();
       }
       await _deleteSidecars(dbPath);
