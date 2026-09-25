@@ -428,6 +428,11 @@ class DbHelper {
     // accepted here because opening them through DbHelper can migrate them.
     final versionRows = await db.rawQuery('PRAGMA user_version');
     final version = (versionRows.first['user_version'] as num?)?.toInt() ?? 0;
+    if (version > _dbVersion) {
+      throw ValidasiException(
+        'Database v$version tidak didukung. Versi maksimum adalah v$_dbVersion.',
+      );
+    }
     if (version >= 7 && !names.contains('app_settings')) {
       throw ValidasiException(
         'Database v$version tidak kompatibel: tabel app_settings tidak ditemukan.',
