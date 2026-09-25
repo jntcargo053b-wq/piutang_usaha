@@ -111,8 +111,9 @@ void main() {
     final path = await db.getDbPath();
     final legacy = await databaseFactory.openDatabase(
       path,
-      version: 6,
-      onCreate: (database, version) async {
+      options: OpenDatabaseOptions(
+        version: 6,
+        onCreate: (database, version) async {
         await database.execute('''
           CREATE TABLE pelanggan (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,7 +149,8 @@ void main() {
             FOREIGN KEY (transaksi_id) REFERENCES transaksi_kredit (id) ON DELETE CASCADE
           )
         ''');
-      },
+        },
+      ),
     );
 
     await legacy.insert('pelanggan', {
