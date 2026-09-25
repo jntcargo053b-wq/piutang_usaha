@@ -168,6 +168,13 @@ void main() {
       'berat': 1.5,
       'quantity': 2,
     });
+    await legacy.insert('pembayaran', {
+      'transaksi_id': 1,
+      'tanggal': DateTime(2026, 9, 5).toIso8601String(),
+      'jumlah': 10000,
+      'keterangan': 'Pembayaran legacy',
+      'metode': 'cash',
+    });
     await legacy.close();
 
     final migrated = await db.database;
@@ -193,6 +200,16 @@ void main() {
     );
     expect(transaction.single['nomor_resi'], 'LEGACY-001');
     expect(transaction.single['jumlah'], 50000);
+
+    final payments = await migrated.query(
+      'pembayaran',
+      where: 'transaksi_id = ?',
+      whereArgs: [1],
+    );
+    expect(payments, hasLength(1));
+    expect(payments.single['jumlah'], 10000);
+    expect(payments.single['metode'], 'cash');
+    expect(payments.single['keterangan'], 'Pembayaran legacy');
 
     final indexes = await migrated.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='index' "
