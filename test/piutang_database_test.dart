@@ -107,6 +107,100 @@ void main() {
     await db.validateSchema(database);
   });
 
+  test('legacy database v6 migrates to v7 and preserves data', () async {
+    final path = await db.getDbPath();
+    final legacy = await databaseFactory.openDatabase(
+      path,
+      version: 6,
+      onCreate: (database, version) async {
+        await database.execute('''
+          CREATE TABLE pelanggan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nama TEXT NOT NULL,
+            alamat TEXT,
+            no_hp TEXT,
+            created_at TEXT NOT NULL
+          )
+        ''');
+        await database.execute('''
+          CREATE TABLE transaksi_kredit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pelanggan_id INTEGER NOT NULL,
+            tanggal TEXT NOT NULL,
+            nomor_resi TEXT NOT NULL,
+            nama_penerima TEXT NOT NULL,
+            kota_tujuan TEXT NOT NULL,
+            deskripsi TEXT NOT NULL DEFAULT '',
+            jumlah INTEGER NOT NULL,
+            berat REAL NOT NULL DEFAULT 0,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            FOREIGN KEY (pelanggan_id) REFERENCES pelanggan (id) ON DELETE CASCADE
+          )
+        ''');
+        await database.execute('''
+          CREATE TABLE pembayaran (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            transaksi_id INTEGER NOT NULL,
+            tanggal TEXT NOT NULL,
+            jumlah INTEGER NOT NULL,
+            keterangan TEXT,
+            metode TEXT,
+            FOREIGN KEY (transaksi_id) REFERENCES transaksi_kredit (id) ON DELETE CASCADE
+          )
+        ''');
+      },
+    );
+
+    await legacy.insert('pelanggan', {
+      'nama': 'Legacy Customer',
+      'created_at': DateTime(2026, 9, 1).toIso8601String(),
+    });
+    await legacy.insert('transaksi_kredit', {
+      'pelanggan_id': 1,
+      'tanggal': DateTime(2026, 9, 2).toIso8601String(),
+      'nomor_resi': 'LEGACY-001',
+      'nama_penerima': 'Penerima Legacy',
+      'kota_tujuan': 'Malang',
+      'deskripsi': 'Data sebelum v7',
+      'jumlah': 50000,
+      'berat': 1.5,
+      'quantity': 2,
+    });
+    await legacy.close();
+
+    final migrated = await db.database;
+    final version = (await migrated.rawQuery('PRAGMA user_version')).first['user_version'];
+    expect(version, 7);
+
+    final settings = await migrated.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'",
+    );
+    expect(settings, hasLength(1));
+
+    final customer = await migrated.query(
+      'pelanggan',
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    expect(customer.single['nama'], 'Legacy Customer');
+
+    final transaction = await migrated.query(
+      'transaksi_kredit',
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    expect(transaction.single['nomor_resi'], 'LEGACY-001');
+    expect(transaction.single['jumlah'], 50000);
+
+    final indexes = await migrated.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='index' "
+      "AND name='idx_transaksi_resi_nocase'",
+    );
+    expect(indexes, hasLength(1));
+
+    await db.validateSchema(migrated);
+  });
+
   test('payment equal to outstanding is accepted and closes transaction', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
