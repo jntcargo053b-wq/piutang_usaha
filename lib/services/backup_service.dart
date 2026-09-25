@@ -119,14 +119,25 @@ class BackupService {
         await current.delete();
       }
 
+      Object? rollbackError;
       if (rollbackCreated && await rollback.exists()) {
-        await rollback.rename(current.path);
-        rollbackCreated = false;
+        try {
+          await rollback.rename(current.path);
+          rollbackCreated = false;
+        } catch (restoreError) {
+          rollbackError = restoreError;
+        }
       }
 
       await _deleteSidecars(dbPath);
-      await DbHelper.instance.database;
-      rethrow;
+      if (rollbackError == null) {
+        await DbHelper.instance.database;
+        rethrow;
+      }
+
+      throw Exception(
+        'Restore gagal dan database lama tidak dapat dipulihkan: $rollbackError',
+      );
     } finally {
       if (await tmp.exists()) await tmp.delete();
       if (rollbackCreated && await rollback.exists()) {
