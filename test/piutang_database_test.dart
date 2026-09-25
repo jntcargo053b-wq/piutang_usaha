@@ -220,6 +220,16 @@ void main() {
     await db.validateSchema(migrated);
   });
 
+  test('schema validation rejects a database version newer than supported', () async {
+    final database = await db.database;
+    await database.execute('PRAGMA user_version = 8');
+
+    await expectLater(
+      db.validateSchema(database),
+      throwsA(isA<ValidasiException>()),
+    );
+  });
+
   test('payment equal to outstanding is accepted and closes transaction', () async {
     final cid = await customer();
     final tid = await transaction(cid, amount: 100000);
