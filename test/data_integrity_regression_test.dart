@@ -105,8 +105,8 @@ void main() {
       final dbHelper = DbHelper.instance;
       final dbPath = await dbHelper.getDbPath();
       final suffix = DateTime.now().microsecondsSinceEpoch;
-      final baseline = File(Directory.systemTemp.path + '/piutang_baseline_' + suffix.toString() + '.db');
-      final fixture = File(Directory.systemTemp.path + '/piutang_restore_fixture_' + suffix.toString() + '.db');
+      final baseline = File('${Directory.systemTemp.path}/piutang_baseline_${suffix}.db');
+      final fixture = File('${Directory.systemTemp.path}/piutang_restore_fixture_${suffix}.db');
 
       var baselineCreated = false;
       try {
@@ -211,8 +211,8 @@ void main() {
         }
         if (await baseline.exists()) await baseline.delete();
         if (await fixture.exists()) await fixture.delete();
-        final fixtureWal = File(fixture.path + '-wal');
-        final fixtureShm = File(fixture.path + '-shm');
+        final fixtureWal = File('${fixture.path}-wal');
+        final fixtureShm = File('${fixture.path}-shm');
         if (await fixtureWal.exists()) await fixtureWal.delete();
         if (await fixtureShm.exists()) await fixtureShm.delete();
       }
