@@ -57,7 +57,15 @@ class BackupService {
     );
     if (result == null || result.files.single.path == null) return false;
 
-    final selected = File(result.files.single.path!);
+    return restoreFromFile(result.files.single.path!);
+  }
+
+  /// Restores a validated SQLite backup directly from [path].
+  ///
+  /// This is also used by regression tests so the complete replacement and
+  /// rollback flow can be exercised without depending on a native file picker.
+  static Future<bool> restoreFromFile(String path) async {
+    final selected = File(path);
     if (!await selected.exists()) {
       throw Exception('File backup tidak ditemukan.');
     }
