@@ -105,7 +105,7 @@ void main() {
       final dbHelper = DbHelper.instance;
       final dbPath = await dbHelper.getDbPath();
       final suffix = DateTime.now().microsecondsSinceEpoch;
-      final baseline = File('${Directory.systemTemp.path}/piutang_baseline_${suffix}.db');
+      final baseline = File('${Directory.systemTemp.path}/piutang_baseline_$suffix.db');
       final fixture = File('${Directory.systemTemp.path}/piutang_restore_fixture_${suffix}.db');
 
       var baselineCreated = false;
