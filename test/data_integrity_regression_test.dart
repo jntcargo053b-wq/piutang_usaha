@@ -4,6 +4,9 @@ import 'package:piutang_usaha/data/indonesia_cities.dart';
 import 'package:piutang_usaha/services/backup_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
   group('data integrity regression', () {
     test('Indonesia city/regency list contains exactly 514 unique entries', () {
       expect(indonesiaCities.length, 514);
