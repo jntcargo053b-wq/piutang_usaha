@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:piutang_usaha/data/indonesia_cities.dart';
 import 'package:piutang_usaha/services/backup_service.dart';
+import 'package:piutang_usaha/services/db_helper.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -98,6 +99,123 @@ void main() {
         DateTime(2026, 9, 24, 17, 49, 13, 0),
       );
       expect(a, isNot(equals(b)));
+    });
+    
+    test('restore end-to-end replaces live data and preserves it after validation', () async {
+      final dbHelper = DbHelper.instance;
+      final dbPath = await dbHelper.getDbPath();
+      final suffix = DateTime.now().microsecondsSinceEpoch;
+      final baseline = File(Directory.systemTemp.path + '/piutang_baseline_' + suffix.toString() + '.db');
+      final fixture = File(Directory.systemTemp.path + '/piutang_restore_fixture_' + suffix.toString() + '.db');
+
+      var baselineCreated = false;
+      try {
+        await dbHelper.database;
+        await dbHelper.flushForBackup();
+        await dbHelper.tutupKoneksi();
+        final live = File(dbPath);
+        if (await live.exists()) {
+          await live.copy(baseline.path);
+          baselineCreated = true;
+        }
+
+        final db = await dbHelper.database;
+        await db.transaction((txn) async {
+          await txn.delete('pembayaran');
+          await txn.delete('transaksi_kredit');
+          await txn.delete('pelanggan');
+          await txn.delete('app_settings');
+          final pelangganId = await txn.insert('pelanggan', {
+            'nama': 'Restore Test Customer',
+            'alamat': 'Alamat Uji',
+            'no_hp': '081234567890',
+            'created_at': '2026-09-26T10:00:00.000',
+          });
+          final transaksiId = await txn.insert('transaksi_kredit', {
+            'pelanggan_id': pelangganId,
+            'tanggal': '2026-09-26T10:01:00.000',
+            'nomor_resi': 'RESTORE-E2E-001',
+            'nama_penerima': 'Penerima Uji',
+            'kota_tujuan': 'Malang',
+            'deskripsi': 'Transaksi untuk uji restore',
+            'jumlah': 150000,
+            'berat': 2.5,
+            'quantity': 2,
+          });
+          await txn.insert('pembayaran', {
+            'transaksi_id': transaksiId,
+            'tanggal': '2026-09-26T10:02:00.000',
+            'jumlah': 50000,
+            'metode': 'transfer',
+            'keterangan': 'Pembayaran uji restore',
+          });
+          await txn.insert('app_settings', {
+            'key': 'restore_test',
+            'value': 'fixture-ok',
+            'blob': null,
+          });
+        });
+        await dbHelper.flushForBackup();
+        await dbHelper.tutupKoneksi();
+
+        await File(dbPath).copy(fixture.path);
+        await BackupService.validateBackupFile(fixture.path);
+
+        final mutated = await dbHelper.database;
+        await mutated.update(
+          'pelanggan',
+          {'nama': 'DATA SETELAH MUTASI'},
+          where: 'nama = ?',
+          whereArgs: ['Restore Test Customer'],
+        );
+        await mutated.delete(
+          'pembayaran',
+          where: 'keterangan = ?',
+          whereArgs: ['Pembayaran uji restore'],
+        );
+        await dbHelper.flushForBackup();
+        await dbHelper.tutupKoneksi();
+
+        expect(await BackupService.restoreFromFile(fixture.path), isTrue);
+
+        final restored = await dbHelper.database;
+        final customerRows = await restored.query(
+          'pelanggan',
+          where: 'nama = ?',
+          whereArgs: ['Restore Test Customer'],
+        );
+        final paymentRows = await restored.query(
+          'pembayaran',
+          where: 'keterangan = ?',
+          whereArgs: ['Pembayaran uji restore'],
+        );
+        final settingRows = await restored.query(
+          'app_settings',
+          where: 'key = ?',
+          whereArgs: ['restore_test'],
+        );
+
+        expect(customerRows, hasLength(1));
+        expect(paymentRows, hasLength(1));
+        expect(paymentRows.single['jumlah'], 50000);
+        expect(settingRows, hasLength(1));
+        expect(settingRows.single['value'], 'fixture-ok');
+
+        await dbHelper.validateSchema(restored);
+        final integrity = await restored.rawQuery('PRAGMA integrity_check');
+        expect(integrity.single.values.single.toString().toLowerCase(), 'ok');
+      } finally {
+        await dbHelper.tutupKoneksi();
+        if (baselineCreated && await baseline.exists()) {
+          await BackupService.restoreFromFile(baseline.path);
+        }
+        if (await baseline.exists()) await baseline.delete();
+        if (await fixture.exists()) await fixture.delete();
+        final fixtureWal = File(fixture.path + '-wal');
+        final fixtureShm = File(fixture.path + '-shm');
+        if (await fixtureWal.exists()) await fixtureWal.delete();
+        if (await fixtureShm.exists()) await fixtureShm.delete();
+      }
     });
   });
 }
