@@ -30,7 +30,7 @@ class BackupService {
 
     try {
       await dbFile.copy(tujuan.path);
-      await _validateBackupFile(tujuan.path);
+      await validateBackupFile(tujuan.path);
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(tujuan.path)],
@@ -61,7 +61,7 @@ class BackupService {
     if (!await selected.exists()) {
       throw Exception('File backup tidak ditemukan.');
     }
-    await _validateBackupFile(selected.path);
+    await validateBackupFile(selected.path);
 
     final dbPath = await DbHelper.instance.getDbPath();
     final current = File(dbPath);
@@ -87,7 +87,7 @@ class BackupService {
       await selected.copy(tmp.path);
 
       // Validate the exact file that will replace the live database.
-      await _validateBackupFile(tmp.path);
+      await validateBackupFile(tmp.path);
 
       if (await current.exists()) {
         await current.delete();
@@ -147,7 +147,7 @@ class BackupService {
     }
   }
 
-  static Future<void> _validateBackupFile(String path) async {
+  static Future<void> validateBackupFile(String path) async {
     final file = File(path);
     final bytes = await file.openRead(0, 15).first;
     const magic = 'SQLite format 3';
